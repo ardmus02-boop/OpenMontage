@@ -1,9 +1,11 @@
 const express = require("express");
+const path = require("path");
 const { selectComposition, renderMedia } = require("@remotion/renderer");
 
 const app = express();
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
+const browserExecutable = path.join(__dirname, "node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell");
 
 app.get("/", (req, res) => {
   res.send("OpenMontage Remotion Server is running.");
@@ -22,6 +24,7 @@ app.post("/render", async (req, res) => {
   try {
     const composition = await selectComposition({
       serveUrl: "./build",
+      browserExecutable,
       id: compositionId,
       inputProps,
     });
@@ -29,6 +32,7 @@ app.post("/render", async (req, res) => {
     await renderMedia({
       composition: durationInFrames ? { ...composition, durationInFrames: Number(durationInFrames) } : composition,
       serveUrl: "./build",
+      browserExecutable,
       codec: "h264",
       outputLocation,
       inputProps,
