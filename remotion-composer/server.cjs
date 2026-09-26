@@ -39,6 +39,7 @@ app.post("/render", async (req, res) => {
       serveUrl: "./build",
       browserExecutable,
       codec: "h264",
+      crf: 28,
       concurrency: 1,
       outputLocation,
       inputProps,
