@@ -3,6 +3,10 @@ const path = require("path");
 const { selectComposition, renderMedia } = require("@remotion/renderer");
 
 const app = express();
+process.on('SIGTERM', () => console.log('PROCESS SIGTERM'));
+process.on('SIGINT', () => console.log('PROCESS SIGINT'));
+process.on('uncaughtException', (e) => console.error('UNCAUGHT:', e));
+process.on('unhandledRejection', (e) => console.error('UNHANDLED:', e));
 app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const browserExecutable = path.join(__dirname, "node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell");
