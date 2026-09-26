@@ -146,7 +146,7 @@ const AnimatedBackground: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
               height: orb.size,
               borderRadius: "50%",
               background: `rgba(${r}, ${g}, ${b}, ${orbOpacity})`,
-              filter: `blur(${orb.size * 0.4}px)`,
+              filter: `blur(${orb.size * 0.08}px)`,
               transform: "translate(-50%, -50%)",
               willChange: "transform",
             }}
