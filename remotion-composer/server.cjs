@@ -29,6 +29,7 @@ app.post("/render", async (req, res) => {
       inputProps,
     });
 
+    console.log("RENDER START:", new Date().toISOString(), "FRAMES:", durationInFrames);
     await renderMedia({
       composition: durationInFrames ? { ...composition, durationInFrames: Number(durationInFrames) } : composition,
       serveUrl: "./build",
@@ -40,6 +41,7 @@ app.post("/render", async (req, res) => {
     });
 
     res.download(outputLocation, "openmontage.mp4");
+    console.log("RENDER END:", new Date().toISOString());
   } catch (error) {
     console.error("Render error:", error);
     res.status(500).json({
