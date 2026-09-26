@@ -47,6 +47,7 @@ app.post("/render", async (req, res) => {
   }
 });
 
+console.log("BROWSER:", browserExecutable, "EXISTS:", require("fs").existsSync(browserExecutable));
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`OpenMontage server listening on port ${PORT}`);
 });
