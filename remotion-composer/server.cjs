@@ -40,6 +40,7 @@ app.post("/render", async (req, res) => {
       browserExecutable,
       codec: "h264",
       crf: 28,
+      scale: 0.5,
       concurrency: 1,
       outputLocation,
       inputProps,
