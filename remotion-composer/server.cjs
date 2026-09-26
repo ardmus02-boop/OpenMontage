@@ -16,6 +16,7 @@ app.get("/health", (req, res) => {
 app.post("/render", async (req, res) => {
   const compositionId = req.body?.compositionId || "Explainer";
   const inputProps = req.body?.inputProps || {};
+  const durationInFrames = req.body?.durationInFrames;
   const outputLocation = "/tmp/openmontage-output.mp4";
 
   try {
@@ -26,7 +27,7 @@ app.post("/render", async (req, res) => {
     });
 
     await renderMedia({
-      composition,
+      composition: durationInFrames ? { ...composition, durationInFrames: Number(durationInFrames) } : composition,
       serveUrl: "./build",
       codec: "h264",
       outputLocation,
