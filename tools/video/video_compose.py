@@ -41,6 +41,7 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import unquote, urlsplit
+from urllib.request import Request, urlopen
 
 from tools.base_tool import (
     BaseTool,
@@ -53,6 +54,9 @@ from tools.base_tool import (
     ToolStability,
     ToolTier,
 )
+
+
+REMOTION_REMOTE_URL = "https://openmontage-fhpp.onrender.com/render"
 
 
 class VideoCompose(BaseTool):
@@ -1940,6 +1944,59 @@ class VideoCompose(BaseTool):
                 )
 
         return render_result
+
+    def _remote_remotion_render(
+        self,
+        composition_id: str,
+        props: dict[str, Any],
+        output_path: Path,
+        public_dir: Path,
+        profile_name: str | None = None,
+    ) -> ToolResult:
+        import tempfile
+        import zipfile
+
+        zip_path = Path(tempfile.mktemp(suffix=".zip"))
+
+        try:
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+                z.writestr("props.json", json.dumps(props))
+
+                if public_dir and public_dir.is_dir():
+                    for file in public_dir.rglob("*"):
+                        if file.is_file():
+                            z.write(file, file.relative_to(public_dir))
+
+            payload = zip_path.read_bytes()
+
+            request = Request(
+                REMOTION_REMOTE_URL.replace("/render", "/render-zip"),
+                data=payload,
+                headers={
+                    "Content-Type": "application/zip",
+                    "X-Composition-Id": composition_id,
+                },
+                method="POST",
+            )
+
+            with urlopen(request, timeout=900) as response:
+                data = response.read()
+
+            output_path.write_bytes(data)
+
+            return ToolResult(
+                success=True,
+                data={"operation": "remote_remotion_render", "output": str(output_path)},
+                artifacts=[str(output_path)],
+            )
+
+        except Exception as e:
+            return ToolResult(
+                success=False,
+                error=f"Remote Remotion render failed: {e}",
+            )
+        finally:
+            zip_path.unlink(missing_ok=True)
 
     def _remotion_render(self, inputs: dict[str, Any]) -> ToolResult:
         """Render via Remotion (requires Node.js + npx).
