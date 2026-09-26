@@ -2144,11 +2144,18 @@ class VideoCompose(BaseTool):
                 except (TypeError, ValueError):
                     pass
 
-            # Invoke from inside the composer dir so npx can resolve the
-            # local remotion binary via node_modules/.bin. Without this,
-            # Windows npx cannot locate the CLI and returns "could not
-            # determine executable to run".
-            self.run_command(cmd, timeout=subprocess_timeout, cwd=composer_dir)
+            # Render remotely on the persistent Render.com Remotion service.
+            # The staged public directory is packed into a ZIP so local media
+            # files are available to the remote renderer.
+            remote_result = self._remote_remotion_render(
+                composition_id,
+                props,
+                output_path,
+                public_dir,
+                profile_name,
+            )
+            if not remote_result.success:
+                return remote_result
         except subprocess.CalledProcessError as e:
             # run_command uses check=True + capture_output, so the useful
             # Remotion diagnostics live in stderr/stdout — surface the tail
