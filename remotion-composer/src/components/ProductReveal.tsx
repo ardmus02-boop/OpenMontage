@@ -1,3 +1,5 @@
+import { resolveAsset } from "../lib/resolveAsset";
+
 import {
   AbsoluteFill,
   Img,
@@ -5,7 +7,6 @@ import {
   spring,
   useCurrentFrame,
   useVideoConfig,
-  staticFile,
   Easing,
 } from "remotion";
 
@@ -146,7 +147,7 @@ export const ProductReveal: React.FC<ProductRevealProps> = ({
           }}
         >
           <Img
-            src={staticFile(productImage)}
+            src={resolveAsset(productImage)}
             style={{
               width: "100%",
               height: "100%",
@@ -172,7 +173,7 @@ export const ProductReveal: React.FC<ProductRevealProps> = ({
           }}
         >
           <Img
-            src={staticFile(productImage)}
+            src={resolveAsset(productImage)}
             style={{
               width: "100%",
               height: 260,
