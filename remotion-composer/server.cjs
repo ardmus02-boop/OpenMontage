@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const AdmZip = require("adm-zip");
 const { selectComposition, renderMedia } = require("@remotion/renderer");
 
 const app = express();
@@ -17,6 +18,58 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+app.post("/render-zip", express.raw({ type: "application/zip", limit: "200mb" }), async (req, res) => {
+  const workDir = `/tmp/openmontage-${Date.now()}`;
+  const zipPath = `${workDir}.zip`;
+  const outputLocation = `${workDir}/openmontage-output.mp4`;
+
+  try {
+    require("fs").mkdirSync(workDir, { recursive: true });
+    require("fs").writeFileSync(zipPath, req.body);
+
+    const zip = new AdmZip(zipPath);
+    zip.extractAllTo(workDir, true);
+
+    const propsPath = path.join(workDir, "props.json");
+    const inputProps = JSON.parse(require("fs").readFileSync(propsPath, "utf8"));
+    const compositionId = req.headers["x-composition-id"] || "Explainer";
+
+    const composition = await selectComposition({
+      serveUrl: "./build",
+      browserExecutable,
+      id: compositionId,
+      inputProps,
+    });
+
+    console.log("ZIP RENDER START:", new Date().toISOString());
+
+    await renderMedia({
+      composition,
+      serveUrl: "./build",
+      browserExecutable,
+      codec: "h264",
+      crf: 28,
+      scale: 0.5,
+      concurrency: 1,
+      outputLocation,
+      inputProps,
+      publicDir: workDir,
+    });
+
+    res.download(outputLocation, "openmontage.mp4", () => {
+      require("fs").rmSync(workDir, { recursive: true, force: true });
+      require("fs").rmSync(zipPath, { force: true });
+    });
+
+    console.log("ZIP RENDER END:", new Date().toISOString());
+  } catch (error) {
+    console.error("ZIP Render error:", error);
+    require("fs").rmSync(workDir, { recursive: true, force: true });
+    require("fs").rmSync(zipPath, { force: true });
+    res.status(500).json({ error: error?.message || String(error) });
+  }
 });
 
 app.post("/render", async (req, res) => {
