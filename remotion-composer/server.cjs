@@ -34,6 +34,28 @@ app.post("/render-zip", express.raw({ type: "application/zip", limit: "200mb" })
 
     const propsPath = path.join(workDir, "props.json");
     const inputProps = JSON.parse(require("fs").readFileSync(propsPath, "utf8"));
+
+    const normalizeMediaPaths = (value) => {
+      if (typeof value === "string") {
+        if (value.startsWith("file://")) {
+          return path.basename(value.replace(/^file:\/\//i, ""));
+        }
+        if (path.isAbsolute(value)) {
+          return path.basename(value);
+        }
+        return value;
+      }
+      if (Array.isArray(value)) return value.map(normalizeMediaPaths);
+      if (value && typeof value === "object") {
+        for (const key of Object.keys(value)) {
+          value[key] = normalizeMediaPaths(value[key]);
+        }
+      }
+      return value;
+    };
+
+    normalizeMediaPaths(inputProps);
+
     const compositionId = req.headers["x-composition-id"] || "Explainer";
 
     const composition = await selectComposition({
