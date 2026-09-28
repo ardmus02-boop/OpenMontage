@@ -21,19 +21,20 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/render-zip", express.raw({ type: "application/zip", limit: "200mb" }), async (req, res) => {
+  const fs = require("fs");
   const workDir = `/tmp/openmontage-${Date.now()}`;
   const zipPath = `${workDir}.zip`;
   const outputLocation = `${workDir}/openmontage-output.mp4`;
 
   try {
-    require("fs").mkdirSync(workDir, { recursive: true });
-    require("fs").writeFileSync(zipPath, req.body);
+    fs.mkdirSync(workDir, { recursive: true });
+    fs.writeFileSync(zipPath, req.body);
 
     const zip = new AdmZip(zipPath);
     zip.extractAllTo(workDir, true);
 
     const propsPath = path.join(workDir, "props.json");
-    const inputProps = JSON.parse(require("fs").readFileSync(propsPath, "utf8"));
+    const inputProps = JSON.parse(fs.readFileSync(propsPath, "utf8"));
 
     const normalizeMediaPaths = (value) => {
       if (typeof value === "string") {
@@ -56,10 +57,37 @@ app.post("/render-zip", express.raw({ type: "application/zip", limit: "200mb" })
 
     normalizeMediaPaths(inputProps);
 
+    const sourceBuildDir = path.join(__dirname, "build");
+    const buildDir = path.join(workDir, "build");
+    const publicDir = path.join(buildDir, "public");
+
+    fs.cpSync(sourceBuildDir, buildDir, { recursive: true });
+    fs.mkdirSync(publicDir, { recursive: true });
+
+    const copyStagedMedia = (dir, relative = "") => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "build" && relative === "") continue;
+        if (entry.name === "props.json" && relative === "") continue;
+
+        const fullPath = path.join(dir, entry.name);
+        const relPath = path.join(relative, entry.name);
+
+        if (entry.isDirectory()) {
+          copyStagedMedia(fullPath, relPath);
+        } else {
+          const destPath = path.join(publicDir, relPath);
+          fs.mkdirSync(path.dirname(destPath), { recursive: true });
+          fs.copyFileSync(fullPath, destPath);
+        }
+      }
+    };
+
+    copyStagedMedia(workDir);
+
     const compositionId = req.headers["x-composition-id"] || "Explainer";
 
     const composition = await selectComposition({
-      serveUrl: "./build",
+      serveUrl: buildDir,
       browserExecutable,
       id: compositionId,
       inputProps,
@@ -69,7 +97,7 @@ app.post("/render-zip", express.raw({ type: "application/zip", limit: "200mb" })
 
     await renderMedia({
       composition,
-      serveUrl: "./build",
+      serveUrl: buildDir,
       browserExecutable,
       codec: "h264",
       crf: 28,
@@ -77,19 +105,18 @@ app.post("/render-zip", express.raw({ type: "application/zip", limit: "200mb" })
       concurrency: 1,
       outputLocation,
       inputProps,
-      publicDir: workDir,
     });
 
     res.download(outputLocation, "openmontage.mp4", () => {
-      require("fs").rmSync(workDir, { recursive: true, force: true });
-      require("fs").rmSync(zipPath, { force: true });
+      fs.rmSync(workDir, { recursive: true, force: true });
+      fs.rmSync(zipPath, { force: true });
     });
 
     console.log("ZIP RENDER END:", new Date().toISOString());
   } catch (error) {
     console.error("ZIP Render error:", error);
-    require("fs").rmSync(workDir, { recursive: true, force: true });
-    require("fs").rmSync(zipPath, { force: true });
+    fs.rmSync(workDir, { recursive: true, force: true });
+    fs.rmSync(zipPath, { force: true });
     res.status(500).json({ error: error?.message || String(error) });
   }
 });
