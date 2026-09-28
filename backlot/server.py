@@ -8,8 +8,10 @@ refetch state. The server never writes to project directories.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import time
+import uuid
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Optional
@@ -171,6 +173,102 @@ def create_app() -> FastAPI:
     async def health() -> dict:
         return {"ok": True, "app": "backlot"}
 
+    @app.post("/api/generate")
+    async def generate(payload: dict) -> dict:
+        mode = str(payload.get("mode", "text_to_image")).strip()
+        prompt = str(payload.get("prompt", "")).strip()
+        duration = str(payload.get("duration", "5"))
+        aspect_ratio = str(payload.get("aspect_ratio", "16:9"))
+        reference_data_url = payload.get("reference_data_url")
+
+        if mode not in {"text_to_image", "image_to_image", "text_to_video", "image_to_video"}:
+            raise HTTPException(status_code=400, detail="invalid mode")
+        if not prompt and mode != "image_to_image":
+            raise HTTPException(status_code=400, detail="prompt is required")
+
+        project_id = f"studio-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+        project_dir = PROJECTS_DIR / project_id
+        project_dir.mkdir(parents=True, exist_ok=False)
+
+        media_exts = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm", ".mov"}
+
+        def save_reference() -> Path | None:
+            if not reference_data_url:
+                return None
+            try:
+                header, encoded = str(reference_data_url).split(",", 1)
+                raw = base64.b64decode(encoded)
+            except Exception:
+                raise HTTPException(status_code=400, detail="invalid reference image")
+            ext = ".png"
+            h = header.lower()
+            if "jpeg" in h or "jpg" in h:
+                ext = ".jpg"
+            elif "webp" in h:
+                ext = ".webp"
+            ref = project_dir / f"reference{ext}"
+            ref.write_bytes(raw)
+            return ref
+
+        reference_path = await asyncio.to_thread(save_reference)
+
+        if mode in {"text_to_image", "image_to_image"}:
+            from tools.graphics.image_selector import ImageSelector
+            output_path = project_dir / "output.png"
+            inputs = {
+                "prompt": prompt,
+                "generation_mode": "edit" if mode == "image_to_image" else "generate",
+                "output_path": str(output_path),
+                "aspect_ratio": aspect_ratio,
+            }
+            if reference_path:
+                inputs["image_path"] = str(reference_path)
+            result = await asyncio.to_thread(ImageSelector().execute, inputs)
+            kind = "image"
+        else:
+            from tools.video.video_selector import VideoSelector
+            output_path = project_dir / "output.mp4"
+            inputs = {
+                "prompt": prompt,
+                "operation": mode,
+                "duration": duration,
+                "aspect_ratio": aspect_ratio,
+                "output_path": str(output_path),
+            }
+            if reference_path:
+                inputs["reference_image_path"] = str(reference_path)
+            result = await asyncio.to_thread(VideoSelector().execute, inputs)
+            kind = "video"
+
+        media_url = None
+        if output_path.is_file():
+            rel = output_path.relative_to(project_dir).as_posix()
+            media_url = f"/media/{project_id}/{rel}"
+        else:
+            found = sorted(
+                [x for x in project_dir.rglob("*") if x.is_file() and x.suffix.lower() in media_exts],
+                key=lambda x: x.stat().st_mtime,
+                reverse=True,
+            )
+            if found:
+                rel = found[0].relative_to(project_dir).as_posix()
+                media_url = f"/media/{project_id}/{rel}"
+
+        return {
+            "success": bool(result.success),
+            "project_id": project_id,
+            "mode": mode,
+            "kind": kind,
+            "media_url": media_url,
+            "error": result.error,
+            "cost_usd": result.cost_usd,
+            "duration_seconds": result.duration_seconds,
+            "seed": result.seed,
+            "model": result.model,
+            "data": result.data,
+            "artifacts": result.artifacts,
+        }
+
     @app.get("/api/projects")
     async def projects() -> list:
         return await asyncio.to_thread(_cached_summaries)
@@ -286,6 +384,10 @@ def create_app() -> FastAPI:
         return _ui_html("board.html", ("board.css", "board.js"))
 
     @app.get("/")
+    async def studio_page() -> HTMLResponse:
+        return _ui_html("studio.html", ())
+
+    @app.get("/library")
     async def library_page() -> HTMLResponse:
         return _ui_html("index.html", ("board.css", "library.js"))
 
