@@ -56,7 +56,7 @@ from tools.base_tool import (
 )
 
 
-REMOTION_REMOTE_URL = "https://openmontage-fhpp.onrender.com/render"
+REMOTION_REMOTE_URL = "http://127.0.0.1:3000/render"
 
 
 class VideoCompose(BaseTool):
