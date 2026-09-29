@@ -22,7 +22,7 @@ from backlot import DEFAULT_PORT
 
 def _port() -> int:
     try:
-        return int(os.environ.get("BACKLOT_PORT", DEFAULT_PORT))
+        return int(os.environ.get("PORT", os.environ.get("BACKLOT_PORT", DEFAULT_PORT)))
     except ValueError:
         return DEFAULT_PORT
 
@@ -82,7 +82,7 @@ def cmd_open(project_id: str | None) -> int:
 def cmd_serve(port: int) -> int:
     import uvicorn
 
-    uvicorn.run("backlot.server:app", host="127.0.0.1", port=port, log_level="warning")
+    uvicorn.run("backlot.server:app", host="0.0.0.0", port=port, log_level="warning")
     return 0
 
 
