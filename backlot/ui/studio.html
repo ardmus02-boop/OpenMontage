@@ -7,7 +7,7 @@
 <style>
 :root{color-scheme:dark;--bg:#090b10;--panel:#11151d;--panel2:#171c26;--line:#252c38;--text:#f5f7fb;--muted:#8e98a8;--accent:#8b7cff;--accent2:#b8adff;--ok:#62d39b;--bad:#ff6b7a}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#1a2030 0,#090b10 42%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
-.wrap{width:min(1120px,94vw);margin:0 auto;padding:28px 0 60px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}.brand{font-size:25px;font-weight:800;letter-spacing:-.04em}.brand span{color:var(--accent2)}.library{color:var(--muted);text-decoration:none;font-size:13px}.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}.panel{background:rgba(17,21,29,.94);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.22)}.label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:9px}.prompt{width:100%;min-height:170px;resize:vertical;background:#0d1118;border:1px solid var(--line);color:var(--text);border-radius:14px;padding:15px;font:inherit;font-size:15px;outline:none}.prompt:focus{border-color:#5148a0}.modes,.seg{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#0e1219;color:#cbd2de;padding:11px 13px;border-radius:12px;cursor:pointer;font-weight:650}.btn.active{background:#2a244f;border-color:#6257cb;color:#fff}.row{margin-top:18px}.upload{position:relative;min-height:210px;border:1px dashed #3a4352;border-radius:16px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;background:#0d1118;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}.upload:hover{border-color:#6257cb;background:#111722}.upload strong{display:block;color:#d8deea;margin-bottom:6px;font-size:15px}.upload input{display:none}.preview{display:none;width:100%;height:150px;object-fit:contain;border-radius:12px;margin-bottom:10px;background:#080b10}.preview.show{display:block}.remove{display:none;position:absolute;top:10px;right:10px;border:1px solid #3b4350;background:#161b24;color:#fff;border-radius:999px;width:30px;height:30px;cursor:pointer}.remove.show{display:block}.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px}.generate{width:100%;margin-top:20px;border:0;border-radius:14px;padding:14px;background:linear-gradient(135deg,#7569ff,#9d91ff);color:#fff;font-weight:800;font-size:15px;cursor:pointer}.generate:disabled{opacity:.55;cursor:wait}.status{min-height:20px;margin-top:12px;color:var(--muted);font-size:13px}.result{min-height:480px;display:flex;align-items:center;justify-content:center;background:#0b0f15;border:1px solid var(--line);border-radius:14px;overflow:hidden;position:relative;padding:52px 14px 14px}.result img,.result video{display:block;width:100%;height:auto;max-height:650px;object-fit:contain}.empty{text-align:center;color:var(--muted);padding:30px}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.chip{background:#151a23;border:1px solid var(--line);color:#aeb7c6;border-radius:999px;padding:7px 10px;font-size:12px}.download{position:absolute;top:12px;right:12px;z-index:5;color:#fff;text-decoration:none;background:#151a23;border:1px solid var(--line);padding:9px 13px;border-radius:10px;font-weight:700}
+.wrap{width:min(1120px,94vw);margin:0 auto;padding:28px 0 60px}.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}.brand{font-size:25px;font-weight:800;letter-spacing:-.04em}.brand span{color:var(--accent2)}.library{color:var(--muted);text-decoration:none;font-size:13px}.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px}.panel{background:rgba(17,21,29,.94);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.22)}.label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:9px}.prompt{width:100%;min-height:170px;resize:vertical;background:#0d1118;border:1px solid var(--line);color:var(--text);border-radius:14px;padding:15px;font:inherit;font-size:15px;outline:none}.prompt:focus{border-color:#5148a0}.modes,.seg{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#0e1219;color:#cbd2de;padding:11px 13px;border-radius:12px;cursor:pointer;font-weight:650}.btn.active{background:#2a244f;border-color:#6257cb;color:#fff}.row{margin-top:18px}.upload{position:relative;min-height:210px;border:1px dashed #3a4352;border-radius:16px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;background:#0d1118;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}.upload:hover{border-color:#6257cb;background:#111722}.upload strong{display:block;color:#d8deea;margin-bottom:6px;font-size:15px}.upload input{display:none}.preview{display:none;width:100%;height:150px;object-fit:contain;border-radius:12px;margin-bottom:10px;background:#080b10}.preview.show{display:block}.remove{display:none;position:absolute;top:10px;right:10px;border:1px solid #3b4350;background:#161b24;color:#fff;border-radius:999px;width:30px;height:30px;cursor:pointer}.remove.show{display:block}.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px}.generate{width:100%;margin-top:20px;border:0;border-radius:14px;padding:14px;background:linear-gradient(135deg,#7569ff,#9d91ff);color:#fff;font-weight:800;font-size:15px;cursor:pointer}.generate:disabled{opacity:.55;cursor:wait}.status{min-height:20px;margin-top:12px;color:var(--muted);font-size:13px}.loading-wrap{display:flex;align-items:center;gap:10px}.spinner{width:14px;height:14px;border:2px solid #343b49;border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite}.progress{height:4px;width:100%;margin-top:9px;background:#1a202b;border-radius:99px;overflow:hidden}.progress i{display:block;width:35%;height:100%;background:linear-gradient(90deg,#7569ff,#b8adff);border-radius:99px;animation:progress 1.3s ease-in-out infinite}@keyframes spin{to{transform:rotate(360deg)}}@keyframes progress{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}.result{min-height:480px;display:flex;align-items:center;justify-content:center;background:#0b0f15;border:1px solid var(--line);border-radius:14px;overflow:hidden;position:relative;padding:52px 14px 14px}.result img,.result video{display:block;width:100%;height:auto;max-height:650px;object-fit:contain}.empty{text-align:center;color:var(--muted);padding:30px}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.chip{background:#151a23;border:1px solid var(--line);color:#aeb7c6;border-radius:999px;padding:7px 10px;font-size:12px}.download{position:absolute;top:12px;right:12px;z-index:5;color:#fff;text-decoration:none;background:#151a23;border:1px solid var(--line);padding:9px 13px;border-radius:10px;font-weight:700}
 @media(max-width:850px){.grid{grid-template-columns:1fr}.result{min-height:320px}}
 </style>
 </head>
@@ -22,10 +22,8 @@
     <section class="panel">
       <div class="label">Generation Mode</div>
       <div class="modes" id="modes">
-        <button class="btn active" data-mode="text_to_image">Text to Image</button>
-        <button class="btn" data-mode="image_to_image">Image to Image</button>
-        <button class="btn" data-mode="text_to_video">Text to Video</button>
-        <button class="btn" data-mode="image_to_video">Image to Video</button>
+        <button class="btn active" data-mode="text_to_image">Text → Image</button>
+        <button class="btn" data-mode="image_to_image">Image → Image · Face Lock</button>
       </div>
 
       <div class="row">
@@ -38,21 +36,20 @@
         <label class="upload" id="uploadBox">
           <img id="preview" class="preview" alt="Reference preview">
           <button type="button" class="remove" id="removeFile">×</button>
-          <strong id="uploadTitle">Görsel seç</strong>
-          <span id="fileName">PNG, JPG veya WEBP</span>
+          <strong id="uploadTitle">Yüz referansı seç</strong>
+          <span id="fileName">PNG, JPG veya WEBP · Face Lock</span>
           <input id="file" type="file" accept="image/png,image/jpeg,image/webp">
         </label>
       </div>
 
-      <div class="row controls">
-        <div id="durationBox" style="display:none">
-          <div class="label">Duration</div>
-          <div class="seg">
-            <button class="btn active dur" data-duration="5">5 sec</button>
-            <button class="btn dur" data-duration="10">10 sec</button>
-            <button class="btn dur" data-duration="60">60 sec</button>
-          </div>
+      <div class="row">
+        <div id="faceLockBox" style="display:none">
+          <div class="label">Face Lock</div>
+          <button class="btn active" id="faceLock">ON · Identity Preserved</button>
         </div>
+      </div>
+
+      <div class="row">
         <div>
           <div class="label">Aspect Ratio</div>
           <div class="seg">
@@ -82,28 +79,29 @@ const $=s=>document.querySelector(s);
 const SITE_NAME="OpenMontage AI Studio";
 $("#pageTitle").textContent=SITE_NAME;
 $("#brandName").textContent=SITE_NAME;
-let mode="text_to_image",duration="5",ratio="16:9",referenceDataUrl=null;
+let mode="text_to_image",ratio="16:9",referenceDataUrl=null,faceLock=true;
 
-const videoMode=()=>mode==="text_to_video"||mode==="image_to_video";
-const imageMode=()=>mode==="image_to_image"||mode==="image_to_video";
+const imageMode=()=>mode==="image_to_image";
 
 function refresh(){
   $("#uploadRow").style.display=imageMode()?"block":"none";
-  $("#durationBox").style.display=videoMode()?"block":"none";
+  $("#faceLockBox").style.display=imageMode()?"block":"none";
 }
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{
   mode=b.dataset.mode;
   document.querySelectorAll("[data-mode]").forEach(x=>x.classList.toggle("active",x===b));
   refresh();
 });
-document.querySelectorAll(".dur").forEach(b=>b.onclick=()=>{
-  duration=b.dataset.duration;
-  document.querySelectorAll(".dur").forEach(x=>x.classList.toggle("active",x===b));
-});
 document.querySelectorAll(".ratio").forEach(b=>b.onclick=()=>{
   ratio=b.dataset.ratio;
   document.querySelectorAll(".ratio").forEach(x=>x.classList.toggle("active",x===b));
 });
+
+$("#faceLock").onclick=()=>{
+  faceLock=!faceLock;
+  $("#faceLock").classList.toggle("active",faceLock);
+  $("#faceLock").textContent=faceLock?"ON · Identity Preserved":"OFF · Face Lock Disabled";
+};
 $("#uploadBox").onclick=(e)=>{
   if(e.target.id==="removeFile") return;
   $("#file").click();
@@ -138,20 +136,23 @@ $("#removeFile").onclick=(e)=>{
 
 $("#generate").onclick=async()=>{
   const prompt=$("#prompt").value.trim();
-  if(!prompt&&mode!=="image_to_image"){ $("#status").textContent="Prompt gerekli."; return; }
+  if(!prompt){ $("#status").textContent="Prompt gerekli."; return; }
   if(imageMode()&&!referenceDataUrl){ $("#status").textContent="Referans görsel seç."; return; }
 
   $("#generate").disabled=true;
-  $("#status").textContent="Üretiliyor...";
+  $("#generate").textContent="⏳ GENERATING...";
+  $("#status").innerHTML='<div class="loading-wrap"><span class="spinner"></span><span>Görsel oluşturuluyor… <b id="progressPct">20%</b></span></div><div class="progress"><i id="progressBar"></i></div>';
+      let fakeProgress=20;
+      const progressTimer=setInterval(()=>{ if(fakeProgress<90){ fakeProgress=fakeProgress<40?40:fakeProgress<75?75:90; const pct=document.getElementById("progressPct"); const bar=document.getElementById("progressBar"); if(pct)pct.textContent=fakeProgress+"%"; if(bar)bar.style.width=fakeProgress+"%"; } },1200);
   $("#meta").innerHTML="";
   try{
     const res=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      mode,prompt,duration,aspect_ratio:ratio,reference_data_url:referenceDataUrl
+      mode,prompt,aspect_ratio:ratio,reference_data_url:referenceDataUrl,face_lock:faceLock
     })});
     const data=await res.json();
     if(!data.success) throw new Error(data.error||"Generation failed");
 
-    $("#status").textContent="Hazır.";
+    clearInterval(progressTimer); $("#status").innerHTML='✓ Görsel hazır. <b>100%</b>';
     $("#result").innerHTML="";
     if(data.media_url){
       const el=data.kind==="video"?document.createElement("video"):document.createElement("img");
@@ -169,6 +170,7 @@ $("#generate").onclick=async()=>{
     $("#status").textContent=e.message;
   }finally{
     $("#generate").disabled=false;
+    $("#generate").textContent="GENERATE";
   }
 };
 refresh();
