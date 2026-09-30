@@ -239,6 +239,7 @@ def create_app() -> FastAPI:
                 inputs["model"] = payload["model"]
             if reference_path:
                 inputs["reference_image_path"] = str(reference_path)
+                inputs["reference_image_url"] = f"https://openmontage-fhpp.onrender.com/media/{project_id}/{reference_path.name}"
             result = await asyncio.to_thread(VideoSelector().execute, inputs)
             kind = "video"
 

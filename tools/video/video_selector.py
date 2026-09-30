@@ -339,8 +339,10 @@ class VideoSelector(BaseTool):
                 adapted["query"] = adapted.get("prompt", "")
 
         # Auto-resolve reference_image_path to a URL for providers that need it
-        if adapted.get("operation") == "image_to_video" and adapted.get("reference_image_path"):
+        if adapted.get("operation") == "image_to_video" and (adapted.get("reference_image_path") or adapted.get("reference_image_url")):
             tool_props = getattr(tool, "input_schema", {}).get("properties", {})
+            if adapted.get("reference_image_url") and "image_url" in tool_props:
+                adapted["image_url"] = adapted["reference_image_url"]
             # Prefer a local image_path when the provider accepts it.
             # Only use FAL upload when the provider requires image_url.
             if "image_path" in tool_props and "image_path" not in adapted:
