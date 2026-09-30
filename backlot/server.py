@@ -235,6 +235,8 @@ def create_app() -> FastAPI:
                 "aspect_ratio": aspect_ratio,
                 "output_path": str(output_path),
             }
+            if payload.get("model"):
+                inputs["model"] = payload["model"]
             if reference_path:
                 inputs["reference_image_path"] = str(reference_path)
             result = await asyncio.to_thread(VideoSelector().execute, inputs)

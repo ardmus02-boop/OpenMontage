@@ -24,6 +24,8 @@
       <div class="modes" id="modes">
         <button class="btn active" data-mode="text_to_image">Text → Image</button>
         <button class="btn" data-mode="image_to_image">Image → Image · Face Lock</button>
+  <button class="btn" data-mode="text_to_video">Text → Video</button>
+  <button class="btn" data-mode="image_to_video">Image → Video</button>
       </div>
 
       <div class="row">
@@ -79,13 +81,20 @@ const $=s=>document.querySelector(s);
 const SITE_NAME="OpenMontage AI Studio";
 $("#pageTitle").textContent=SITE_NAME;
 $("#brandName").textContent=SITE_NAME;
-let mode="text_to_image",ratio="16:9",referenceDataUrl=null,faceLock=true;
+let mode="text_to_image",ratio="16:9",referenceDataUrl=null,faceLock=true,videoModel="agnes-video-v2.0",videoDuration="5";
 
 const imageMode=()=>mode==="image_to_image";
+const videoMode=()=>mode==="text_to_video"||mode==="image_to_video";
+const videoImageMode=()=>mode==="image_to_video";
 
 function refresh(){
-  $("#uploadRow").style.display=imageMode()?"block":"none";
-  $("#faceLockBox").style.display=imageMode()?"block":"none";
+  const image=imageMode();
+  const video=videoMode();
+  $("#uploadRow").style.display=(image||videoImageMode())?"block":"none";
+  $("#faceLockBox").style.display=image?"block":"none";
+  $("#videoControls").style.display=video?"block":"none";
+  $("#uploadTitle").textContent=videoImageMode()?"Video reference image":image?"Yüz referansı seç":"Reference Image";
+  $("#fileName").textContent=videoImageMode()?"PNG, JPG veya WEBP · Image → Video":image?"PNG, JPG veya WEBP · Face Lock":"PNG, JPG veya WEBP";
 }
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{
   mode=b.dataset.mode;
@@ -102,6 +111,16 @@ $("#faceLock").onclick=()=>{
   $("#faceLock").classList.toggle("active",faceLock);
   $("#faceLock").textContent=faceLock?"ON · Identity Preserved":"OFF · Face Lock Disabled";
 };
+
+document.querySelectorAll(".video-model").forEach(b=>b.onclick=()=>{
+  videoModel=b.dataset.model;
+  document.querySelectorAll(".video-model").forEach(x=>x.classList.toggle("active",x===b));
+});
+
+document.querySelectorAll(".duration").forEach(b=>b.onclick=()=>{
+  videoDuration=b.dataset.duration;
+  document.querySelectorAll(".duration").forEach(x=>x.classList.toggle("active",x===b));
+});
 $("#uploadBox").onclick=(e)=>{
   if(e.target.id==="removeFile") return;
   $("#file").click();
@@ -137,22 +156,22 @@ $("#removeFile").onclick=(e)=>{
 $("#generate").onclick=async()=>{
   const prompt=$("#prompt").value.trim();
   if(!prompt){ $("#status").textContent="Prompt gerekli."; return; }
-  if(imageMode()&&!referenceDataUrl){ $("#status").textContent="Referans görsel seç."; return; }
+  if((imageMode()||videoImageMode())&&!referenceDataUrl){ $("#status").textContent="Referans görsel seç."; return; }
 
   $("#generate").disabled=true;
   $("#generate").textContent="⏳ GENERATING...";
-  $("#status").innerHTML='<div class="loading-wrap"><span class="spinner"></span><span>Görsel oluşturuluyor… <b id="progressPct">20%</b></span></div><div class="progress"><i id="progressBar"></i></div>';
+  $("#status").innerHTML=`<div class="loading-wrap"><span class="spinner"></span><span>${videoMode()?"Video":"Görsel"} oluşturuluyor… <b id="progressPct">20%</b></span></div><div class="progress"><i id="progressBar"></i></div>`;
       let fakeProgress=20;
       const progressTimer=setInterval(()=>{ if(fakeProgress<90){ fakeProgress=fakeProgress<40?40:fakeProgress<75?75:90; const pct=document.getElementById("progressPct"); const bar=document.getElementById("progressBar"); if(pct)pct.textContent=fakeProgress+"%"; if(bar)bar.style.width=fakeProgress+"%"; } },1200);
   $("#meta").innerHTML="";
   try{
     const res=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      mode,prompt,aspect_ratio:ratio,reference_data_url:referenceDataUrl,face_lock:faceLock
+      mode,prompt,aspect_ratio:ratio,reference_data_url:referenceDataUrl,face_lock:faceLock,model:videoMode()?videoModel:undefined,duration:videoMode()?videoDuration:undefined
     })});
     const data=await res.json();
     if(!data.success) throw new Error(data.error||"Generation failed");
 
-    clearInterval(progressTimer); $("#status").innerHTML='✓ Görsel hazır. <b>100%</b>';
+    clearInterval(progressTimer); $("#status").innerHTML=`✓ ${videoMode()?"Video":"Görsel"} hazır. <b>100%</b>`;
     $("#result").innerHTML="";
     if(data.media_url){
       const el=data.kind==="video"?document.createElement("video"):document.createElement("img");
