@@ -171,7 +171,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health")
     async def health() -> dict:
-        return {"ok": True, "app": "backlot", "cloudflare_account": bool(__import__("os").environ.get("CLOUDFLARE_ACCOUNT_ID")), "cloudflare_token": bool(__import__("os").environ.get("CLOUDFLARE_API_TOKEN"))}
+        return {"ok": True, "app": "backlot", "cloudflare_account": bool(__import__("os").environ.get("CLOUDFLARE_ACCOUNT_ID")), "cloudflare_token": bool(__import__("os").environ.get("CLOUDFLARE_API_TOKEN")), "agnes_api_key": bool(__import__("os").environ.get("AGNES_API_KEY"))}
 
     @app.post("/api/generate")
     async def generate(payload: dict) -> dict:
