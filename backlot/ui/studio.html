@@ -22,43 +22,61 @@
   </div>
 
   <section class="panel" id="templatesPanel" style="display:none;margin-bottom:18px">
-    <div class="label">Free Templates & Stock Gallery (6 Ready Templates)</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
-      <div class="panel" style="padding:14px">
-        <div style="height:120px;border-radius:12px;background:linear-gradient(135deg,#3a3285,#6257cb);display:flex;align-items:center;justify-content:center;font-size:36px">🖼️</div>
-        <div style="font-weight:800;margin-top:10px">Photo Stack</div>
-        <div style="color:var(--muted);font-size:12px;margin-top:4px">10 sec · Multi-image stack</div>
-        <button class="generate" onclick="selectTemplate(\PhotoStack\)" style="margin-top:10px;padding:10px">USE TEMPLATE</button>
+    <div class="label" style="font-size:14px;font-weight:700;color:#fff;margin-bottom:14px;">🎬 FREE TEMPLATES & VIDEO TRAILER PREVIEWS</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+      <div class="panel" style="padding:14px;background:#151a24;border:1px solid var(--line);">
+        <div style="height:130px;border-radius:10px;overflow:hidden;position:relative;background:#000;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:rgba(0,0,0,0.4);font-size:13px;letter-spacing:.05em">▶ PREVIEW TRAILER</div>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#2b235c,#5749cb);display:flex;align-items:center;justify-content:center;font-size:13px;color:#d8deea;">Photo Stack Motion</div>
+        </div>
+        <div style="font-weight:800;margin-top:12px">Photo Stack</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:4px">10 sec · Multi-image stack animation</div>
+        <button class="generate" onclick="selectTemplate('PhotoStack')" style="margin-top:12px;padding:10px">USE TEMPLATE</button>
       </div>
-      <div class="panel" style="padding:14px">
-        <div style="height:120px;border-radius:12px;background:linear-gradient(135deg,#853232,#cb5757);display:flex;align-items:center;justify-content:center;font-size:36px">⚡</div>
-        <div style="font-weight:800;margin-top:10px">Kinetic Typography</div>
+      <div class="panel" style="padding:14px;background:#151a24;border:1px solid var(--line);">
+        <div style="height:130px;border-radius:10px;overflow:hidden;position:relative;background:#000;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:rgba(0,0,0,0.4);font-size:13px;letter-spacing:.05em">▶ PREVIEW TRAILER</div>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#5c2323,#cb4949);display:flex;align-items:center;justify-content:center;font-size:13px;color:#d8deea;">Kinetic Text FX</div>
+        </div>
+        <div style="font-weight:800;margin-top:12px">Kinetic Typography</div>
         <div style="color:var(--muted);font-size:12px;margin-top:4px">5 sec · Fast text animation</div>
-        <button class="generate" onclick="selectTemplate(\KineticTypography\)" style="margin-top:10px;padding:10px">USE TEMPLATE</button>
+        <button class="generate" onclick="selectTemplate('KineticTypography')" style="margin-top:12px;padding:10px">USE TEMPLATE</button>
       </div>
-      <div class="panel" style="padding:14px">
-        <div style="height:120px;border-radius:12px;background:linear-gradient(135deg,#328543,#57cb72);display:flex;align-items:center;justify-content:center;font-size:36px">📺</div>
-        <div style="font-weight:800;margin-top:10px">Glitch Intro</div>
+      <div class="panel" style="padding:14px;background:#151a24;border:1px solid var(--line);">
+        <div style="height:130px;border-radius:10px;overflow:hidden;position:relative;background:#000;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:rgba(0,0,0,0.4);font-size:13px;letter-spacing:.05em">▶ PREVIEW TRAILER</div>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#235c30,#49cb62);display:flex;align-items:center;justify-content:center;font-size:13px;color:#d8deea;">Glitch Cyber Intro</div>
+        </div>
+        <div style="font-weight:800;margin-top:12px">Glitch Intro</div>
         <div style="color:var(--muted);font-size:12px;margin-top:4px">7 sec · Cyber glitch effect</div>
-        <button class="generate" onclick="selectTemplate(\GlitchIntro\)" style="margin-top:10px;padding:10px">USE TEMPLATE</button>
+        <button class="generate" onclick="selectTemplate('GlitchIntro')" style="margin-top:12px;padding:10px">USE TEMPLATE</button>
       </div>
-      <div class="panel" style="padding:14px">
-        <div style="height:120px;border-radius:12px;background:linear-gradient(135deg,#857132;cbaf57);display:flex;align-items:center;justify-content:center;font-size:36px">🏷️</div>
-        <div style="font-weight:800;margin-top:10px">Minimal Lower Third</div>
+      <div class="panel" style="padding:14px;background:#151a24;border:1px solid var(--line);">
+        <div style="height:130px;border-radius:10px;overflow:hidden;position:relative;background:#000;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:rgba(0,0,0,0.4);font-size:13px;letter-spacing:.05em">▶ PREVIEW TRAILER</div>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#5c5223,#cbc049);display:flex;align-items:center;justify-content:center;font-size:13px;color:#d8deea;">Lower Third Banner</div>
+        </div>
+        <div style="font-weight:800;margin-top:12px">Minimal Lower Third</div>
         <div style="color:var(--muted);font-size:12px;margin-top:4px">5 sec · Clean title card</div>
-        <button class="generate" onclick="selectTemplate(\MinimalLowerThird\)" style="margin-top:10px;padding:10px">USE TEMPLATE</button>
+        <button class="generate" onclick="selectTemplate('MinimalLowerThird')" style="margin-top:12px;padding:10px">USE TEMPLATE</button>
       </div>
-      <div class="panel" style="padding:14px">
-        <div style="height:120px;border-radius:12px;background:linear-gradient(135deg,#326385,#579acb);display:flex;align-items:center;justify-content:center;font-size:36px">🪟</div>
-        <div style="font-weight:800;margin-top:10px">Split Screen</div>
+      <div class="panel" style="padding:14px;background:#151a24;border:1px solid var(--line);">
+        <div style="height:130px;border-radius:10px;overflow:hidden;position:relative;background:#000;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:rgba(0,0,0,0.4);font-size:13px;letter-spacing:.05em">▶ PREVIEW TRAILER</div>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#23495c,#499acb);display:flex;align-items:center;justify-content:center;font-size:13px;color:#d8deea;">Split Screen Layout</div>
+        </div>
+        <div style="font-weight:800;margin-top:12px">Split Screen</div>
         <div style="color:var(--muted);font-size:12px;margin-top:4px">8 sec · Dual video/image layout</div>
-        <button class="generate" onclick="selectTemplate(\SplitScreen\)" style="margin-top:10px;padding:10px">USE TEMPLATE</button>
+        <button class="generate" onclick="selectTemplate('SplitScreen')" style="margin-top:12px;padding:10px">USE TEMPLATE</button>
       </div>
-      <div class="panel" style="padding:14px">
-        <div style="height:120px;border-radius:12px;background:linear-gradient(135deg,#853279;cb57b7);display:flex;align-items:center;justify-content:center;font-size:36px">🛍️</div>
-        <div style="font-weight:800;margin-top:10px">Product Showcase</div>
+      <div class="panel" style="padding:14px;background:#151a24;border:1px solid var(--line);">
+        <div style="height:130px;border-radius:10px;overflow:hidden;position:relative;background:#000;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:rgba(0,0,0,0.4);font-size:13px;letter-spacing:.05em">▶ PREVIEW TRAILER</div>
+          <div style="width:100%;height:100%;background:linear-gradient(135deg,#5c2354,#cb49bc);display:flex;align-items:center;justify-content:center;font-size:13px;color:#d8deea;">Product Showcase</div>
+        </div>
+        <div style="font-weight:800;margin-top:12px">Product Showcase</div>
         <div style="color:var(--muted);font-size:12px;margin-top:4px">12 sec · E-commerce template</div>
-        <button class="generate" onclick="selectTemplate(\ProductShowcase\)" style="margin-top:10px;padding:10px">USE TEMPLATE</button>
+        <button class="generate" onclick="selectTemplate('ProductShowcase')" style="margin-top:12px;padding:10px">USE TEMPLATE</button>
       </div>
     </div>
   </section>
