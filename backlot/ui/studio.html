@@ -55,7 +55,8 @@
         <div>
           <div class="label">Video Model</div>
           <div class="seg">
-            <button class="btn active video-model" data-model="agnes-video-v2.0">AGNES V2.0</button>
+            <button class="btn active video-model" data-model="agnes-video-v2.0" data-provider="agnes">AGNES V2.0</button>
+            <button class="btn video-model" data-model="minimax-h3-max" data-provider="hedra">HEDRA</button>
           </div>
         </div>
         <div style="margin-top:12px">
@@ -97,7 +98,7 @@ const $=s=>document.querySelector(s);
 const SITE_NAME="OpenMontage AI Studio";
 $("#pageTitle").textContent=SITE_NAME;
 $("#brandName").textContent=SITE_NAME;
-let mode="text_to_image",ratio="16:9",referenceDataUrl=null,faceLock=true,videoModel="agnes-video-v2.0",videoDuration="5";
+let mode="text_to_image",ratio="16:9",referenceDataUrl=null,faceLock=true,videoModel="agnes-video-v2.0",videoProvider="agnes",videoDuration="5";
 
 const imageMode=()=>mode==="image_to_image";
 const videoMode=()=>mode==="text_to_video"||mode==="image_to_video";
@@ -130,6 +131,7 @@ $("#faceLock").onclick=()=>{
 
 document.querySelectorAll(".video-model").forEach(b=>b.onclick=()=>{
   videoModel=b.dataset.model;
+  videoProvider=b.dataset.provider;
   document.querySelectorAll(".video-model").forEach(x=>x.classList.toggle("active",x===b));
 });
 
@@ -182,7 +184,7 @@ $("#generate").onclick=async()=>{
   $("#meta").innerHTML="";
   try{
     const res=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      mode,prompt,aspect_ratio:ratio,reference_data_url:referenceDataUrl,face_lock:faceLock,model:videoMode()?videoModel:undefined,duration:videoMode()?videoDuration:undefined
+      mode,prompt,aspect_ratio:ratio,reference_data_url:referenceDataUrl,face_lock:faceLock,model:videoMode()?videoModel:undefined,preferred_provider:videoMode()?videoProvider:undefined,duration:videoMode()?videoDuration:undefined
     })});
     const data=await res.json();
     if(!data.success) throw new Error(data.error||"Generation failed");

@@ -237,6 +237,8 @@ def create_app() -> FastAPI:
             }
             if payload.get("model"):
                 inputs["model"] = payload["model"]
+            if payload.get("preferred_provider"):
+                inputs["preferred_provider"] = payload["preferred_provider"]
             if reference_path:
                 inputs["reference_image_path"] = str(reference_path)
                 inputs["reference_image_url"] = f"https://openmontage-fhpp.onrender.com/media/{project_id}/{reference_path.name}"
