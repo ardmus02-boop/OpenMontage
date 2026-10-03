@@ -16,6 +16,7 @@ import { ProductReveal, ProductRevealProps } from "./components/ProductReveal";
 import { CaptionOverlay, WordCaption } from "./components/CaptionOverlay";
 import { CollageBurst, CollageBurstProps } from "./CollageBurst";
 import { LyricOverlay, LyricOverlayProps } from "./LyricOverlay";
+import { PhotoStack, PhotoStackProps } from "./templates/PhotoStack";
 
 // ---------------------------------------------------------------------------
 // Theme System — prevents every video from looking like dark fintech
@@ -295,6 +296,18 @@ export const Root: React.FC = () => {
           lyrics: [],
           bottomY: 0.88,
         } as LyricOverlayProps}
+      />
+      <Composition
+        id="PhotoStack"
+        component={PhotoStack}
+        durationInFrames={30 * 10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          imageSrc: "",
+          title: "",
+        } as PhotoStackProps}
       />
       <Composition
         id="EndTag"

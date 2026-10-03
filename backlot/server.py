@@ -12,6 +12,9 @@ import base64
 import json
 import time
 import uuid
+import subprocess
+import urllib.request
+import urllib.error
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import Optional
@@ -273,6 +276,31 @@ def create_app() -> FastAPI:
             "data": result.data,
             "artifacts": result.artifacts,
         }
+
+    @app.post("/api/template-render")
+    async def template_render(payload: dict) -> dict:
+        template_id = str(payload.get("template_id", "PhotoStack")).strip()
+        if template_id != "PhotoStack":
+            raise HTTPException(status_code=400, detail="unknown template")
+        image_data_url = str(payload.get("image_data_url", "")).strip()
+        title = str(payload.get("title", "")).strip()
+        project_id = f"template-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+        project_dir = PROJECTS_DIR / project_id
+        project_dir.mkdir(parents=True, exist_ok=False)
+        if image_data_url:
+            image_src = image_data_url
+        else:
+            image_src = "https://placehold.co/1200x800.jpg"
+        output_path = project_dir / "output.mp4"
+        props = json.dumps({"imageSrc": image_src, "title": title}, separators=(",", ":"))
+        command = ["npx", "remotion", "render", "src/index.tsx", template_id, str(output_path), "--frames=0-299", "--props", props]
+        try:
+            await asyncio.to_thread(subprocess.run, command, cwd=str(REPO_ROOT / "remotion-composer"), check=True, capture_output=True, text=True, timeout=300)
+        except subprocess.CalledProcessError as exc:
+            raise HTTPException(status_code=500, detail=(exc.stderr or exc.stdout or str(exc))[-4000:])
+        except subprocess.TimeoutExpired:
+            raise HTTPException(status_code=504, detail="template render timeout")
+        return {"success": output_path.is_file(), "project_id": project_id, "template_id": template_id, "media_url": f"/media/{project_id}/output.mp4" if output_path.is_file() else None}
 
     @app.get("/api/projects")
     async def projects() -> list:
