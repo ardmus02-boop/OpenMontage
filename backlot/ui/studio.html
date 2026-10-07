@@ -23,34 +23,35 @@
 
   <section class="panel" id="templatesPanel" style="display:none;margin-bottom:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-      <div class="label" style="font-size:15px;font-weight:800;color:#fff;margin:0;">🎬 OPENMONTAGE MASTER TEMPLATES GALLERY (81 READY TEMPLATES)</div>
-      <div style="color:var(--muted);font-size:13px;">Scroll to explore all 81 styles</div>
+      <div class="label" style="font-size:15px;font-weight:800;color:#fff;margin:0;">🎬 OPENMONTAGE FREE TEMPLATES</div>
+      <div style="color:var(--muted);font-size:13px;">Real Remotion Templates</div>
     </div>
     <div id="templatesGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;max-height:500px;overflow-y:auto;padding-right:6px;"></div>
   </section>
   <script>
-  window.addEventListener("DOMContentLoaded", () => {
-    const grid = document.getElementById("templatesGrid");
-    if (grid) {
-      const cats = ["Motion", "Typography", "Glitch", "LowerThird", "SplitScreen", "ProductShowcase", "Cinematic", "SocialReel"];
-      let h = "";
-      for (let i = 1; i <= 81; i++) {
-        const c = cats[(i - 1) % cats.length];
-        const name = "Template_" + i + "_" + c;
-        const hue = (i * 37) % 360;
-        h += `<div class="panel" style="padding:12px;background:#151a24;border:1px solid var(--line);border-radius:12px;">` +
-             `<div onclick="openPreview('${name}', '${c}', ${hue})" style="height:100px;border-radius:8px;background:hsl(${hue},65%,22%);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;cursor:pointer;" title="Click to Preview Trailer">` +
-             `<div style="color:#fff;font-weight:800;font-size:13px;text-align:center;padding:10px;">▶ PREVIEW #${i}<br><span style="font-size:10px;color:#cbd2de;font-weight:400;">${c} Style</span></div>` +
-             `</div>` +
-             `<div style="font-weight:800;font-size:13px;margin-top:10px;">Template #${i} (${c})</div>` +
-             `<div style="color:var(--muted);font-size:11px;margin-top:2px">10s · Motion Preview</div>` +
-             `<button class="generate" onclick="selectTemplate('${name}')" style="margin-top:10px;padding:8px 10px;font-size:12px;width:100%;">USE TEMPLATE</button>` +
-             `</div>`;
-      }
-      grid.innerHTML = h;
-    }
-  });
-  </script>
+window.addEventListener("DOMContentLoaded", async () => {
+  const grid = document.getElementById("templatesGrid");
+  if (!grid) return;
+
+  try {
+    const response = await fetch("/api/templates");
+    const templates = await response.json();
+
+    grid.innerHTML = templates.map((t, i) =>
+      `<div class="panel" style="padding:12px;background:#151a24;border:1px solid var(--line);border-radius:12px;">
+        <div style="height:100px;border-radius:8px;background:linear-gradient(135deg,#202938,#111827);display:flex;align-items:center;justify-content:center;cursor:pointer;" onclick="openPreview('${t.id}', 'Remotion', ${i * 37})">
+          <div style="color:#fff;font-weight:800;font-size:13px;text-align:center;padding:10px;">? PREVIEW<br><span style="font-size:10px;color:#cbd2de;font-weight:400;">${t.name}</span></div>
+        </div>
+        <div style="font-weight:800;font-size:13px;margin-top:10px;">${t.name}</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:2px;">Remotion Template</div>
+        <button class="generate" onclick="selectTemplate('${t.id}')" style="margin-top:10px;padding:8px 10px;font-size:12px;width:100%;">USE TEMPLATE</button>
+      </div>`
+    ).join("");
+  } catch (err) {
+    grid.innerHTML = '<div style="color:#f87171;padding:20px;">Templates could not be loaded.</div>';
+  }
+});
+</script>
 
   <div class="grid">
     <section class="panel">
@@ -294,20 +295,49 @@ refresh();
 </div>
 
 <script>
-function openPreview(name, cat, hue) {
+async function openPreview(name, cat, hue) {
   const modal = document.getElementById("templateModal");
+  const player = document.getElementById("modalPlayer");
+
   modal.style.display = "flex";
   document.getElementById("modalTitle").textContent = "Preview: " + name;
-  document.getElementById("modalSubText").textContent = cat + " Animation Trailer (10s)";
-  const player = document.getElementById("modalPlayer");
-  player.style.background = "hsl(" + hue + ", 70%, 25%)";
-  
-  document.getElementById("modalUseBtn").onclick = () => {
-    selectTemplate(name);
-    closeModal();
-  };
-}
+  const modalSub = document.getElementById("modalSubText"); if (modalSub) modalSub.textContent = "Rendering preview...";
 
+  player.style.background = "#000";
+  player.innerHTML = '<div style="color:#fff;text-align:center;padding:20px;">?? Rendering preview...</div>';
+
+  try {
+    const response = await fetch("/api/template-render", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        template_id: name,
+        title: name
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.detail || "Preview render failed");
+    }
+
+    player.innerHTML =
+      '<video controls autoplay muted playsinline style="width:100%;height:100%;object-fit:contain;border-radius:12px;" src="' +
+      result.media_url + '"></video>';
+
+    const modalSub2 = document.getElementById("modalSubText"); if (modalSub2) modalSub2.textContent = "Remotion Template Preview";
+
+    document.getElementById("modalUseBtn").onclick = () => {
+      selectTemplate(name);
+      closeModal();
+    };
+  } catch (err) {
+    player.innerHTML =
+      '<div style="color:#f87171;text-align:center;padding:20px;">Preview failed:<br>' +
+      err.message + '</div>';
+  }
+}
 function closeModal() {
   document.getElementById("templateModal").style.display = "none";
 }
@@ -315,3 +345,6 @@ function closeModal() {
 
 </body>
 </html>
+
+
+

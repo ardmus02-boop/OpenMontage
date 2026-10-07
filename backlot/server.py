@@ -277,10 +277,29 @@ def create_app() -> FastAPI:
             "artifacts": result.artifacts,
         }
 
+    @app.get("/api/templates")
+    async def templates() -> list:
+        return [
+            {"id": "Explainer", "name": "Explainer"},
+            {"id": "CinematicRenderer", "name": "Cinematic Renderer"},
+            {"id": "SignalFromTomorrowWithMusic", "name": "Signal From Tomorrow"},
+            {"id": "TalkingHead", "name": "Talking Head"},
+            {"id": "TitledVideo", "name": "Titled Video"},
+            {"id": "HeroTitle", "name": "Hero Title"},
+            {"id": "ProductReveal", "name": "Product Reveal"},
+            {"id": "ProductRevealVertical", "name": "Product Reveal Vertical"},
+            {"id": "CaptionOverlayOnly", "name": "Caption Overlay"},
+            {"id": "CollageBurst", "name": "Collage Burst"},
+            {"id": "LyricOverlay", "name": "Lyric Overlay"},
+            {"id": "PhotoStack", "name": "Photo Stack"},
+            {"id": "EndTag", "name": "End Tag"},
+            {"id": "EndTagOverlay", "name": "End Tag Overlay"},
+        ]
     @app.post("/api/template-render")
     async def template_render(payload: dict) -> dict:
         template_id = str(payload.get("template_id", "PhotoStack")).strip()
-        if template_id != "PhotoStack":
+        allowed_templates = {"Explainer","CinematicRenderer","SignalFromTomorrowWithMusic","TalkingHead","TitledVideo","HeroTitle","ProductReveal","ProductRevealVertical","CaptionOverlayOnly","CollageBurst","LyricOverlay","PhotoStack","EndTag","EndTagOverlay"}
+        if template_id not in allowed_templates:
             raise HTTPException(status_code=400, detail="unknown template")
         image_data_url = str(payload.get("image_data_url", "")).strip()
         title = str(payload.get("title", "")).strip()
@@ -293,7 +312,7 @@ def create_app() -> FastAPI:
             image_src = "https://placehold.co/1200x800.jpg"
         output_path = project_dir / "output.mp4"
         props = json.dumps({"imageSrc": image_src, "title": title}, separators=(",", ":"))
-        command = ["npx", "remotion", "render", "src/index.tsx", template_id, str(output_path), "--frames=0-299", "--props", props]
+        command = ["npx.cmd", "remotion", "render", "src/index.tsx", template_id, str(output_path), "--frames=0-245", "--props", props]
         try:
             await asyncio.to_thread(subprocess.run, command, cwd=str(REPO_ROOT / "remotion-composer"), check=True, capture_output=True, text=True, timeout=300)
         except subprocess.CalledProcessError as exc:
@@ -501,3 +520,8 @@ def _thumbnail_for(source: Path, width: int) -> Optional[Path]:
 
 
 app = create_app()
+
+
+
+
+

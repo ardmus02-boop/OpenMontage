@@ -305,7 +305,7 @@ export const Root: React.FC = () => {
         width={1920}
         height={1080}
         defaultProps={{
-          imageSrc: "",
+          imageSrc: "https://placehold.co/1200x800.jpg",
           title: "",
         } as PhotoStackProps}
       />
@@ -346,3 +346,4 @@ export const Root: React.FC = () => {
     </>
   );
 };
+
