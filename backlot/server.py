@@ -312,7 +312,7 @@ def create_app() -> FastAPI:
             image_src = "https://placehold.co/1200x800.jpg"
         output_path = project_dir / "output.mp4"
         props = json.dumps({"imageSrc": image_src, "title": title}, separators=(",", ":"))
-        command = ["npx.cmd", "remotion", "render", "src/index.tsx", template_id, str(output_path), "--frames=0-245", "--props", props]
+        command = ["npx", "remotion", "render", "src/index.tsx", template_id, str(output_path), "--frames=0-245", "--props", props]
         try:
             await asyncio.to_thread(subprocess.run, command, cwd=str(REPO_ROOT / "remotion-composer"), check=True, capture_output=True, text=True, timeout=300)
         except subprocess.CalledProcessError as exc:
@@ -520,6 +520,7 @@ def _thumbnail_for(source: Path, width: int) -> Optional[Path]:
 
 
 app = create_app()
+
 
 
 
