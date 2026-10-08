@@ -1,4 +1,4 @@
-"""Backlot server — FastAPI app: board state API, SSE change feed, media.
+﻿"""Backlot server â€” FastAPI app: board state API, SSE change feed, media.
 
 The watcher observes ``projects/`` with watchfiles; on any change it bumps a
 per-project version and wakes SSE subscribers, who tell the browser to
@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import os
 import time
 import uuid
 import subprocess
@@ -23,9 +24,16 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from dotenv import load_dotenv
+from imagekitio import ImageKit
+
 from backlot.state import PROJECTS_DIR, REPO_ROOT, list_projects, load_board_state, summarize_project
 
 UI_DIR = Path(__file__).resolve().parent / "ui"
+load_dotenv(Path(__file__).resolve().parents[1] / '.env')
+IMAGEKIT_PRIVATE_KEY = os.getenv('IMAGEKIT_PRIVATE_KEY', '').strip()
+IMAGEKIT_URL_ENDPOINT = os.getenv('IMAGEKIT_URL_ENDPOINT', '').strip()
+IMAGEKIT = ImageKit(private_key=IMAGEKIT_PRIVATE_KEY) if IMAGEKIT_PRIVATE_KEY else None
 THUMB_CACHE_DIR = REPO_ROOT / ".backlot" / "thumbs"
 THUMB_WIDTHS = (320, 640, 960)
 
@@ -33,6 +41,21 @@ THUMB_WIDTHS = (320, 640, 960)
 _IGNORE_PARTS = {"node_modules", ".git", "__pycache__", ".cache"}
 
 SSE_HEARTBEAT_SECONDS = 15
+def _upload_to_imagekit(file_path: Path, folder: str = "/openmontage") -> Optional[str]:
+    if IMAGEKIT is None or not IMAGEKIT_PRIVATE_KEY:
+        return None
+    try:
+        with file_path.open("rb") as f:
+            result = IMAGEKIT.files.upload(
+                file=f,
+                file_name=file_path.name,
+                folder=folder,
+                use_unique_file_name=True,
+            )
+        return result.url
+    except Exception as exc:
+        print(f"[ImageKit] Upload failed: {exc}", flush=True)
+        return None
 
 
 def _ui_html(name: str, assets: tuple[str, ...]) -> HTMLResponse:
@@ -72,7 +95,7 @@ class ChangeHub:
                 q.put_nowait(project_id)
             except asyncio.QueueFull:
                 # Queue holds only THIS subscriber's relevant ids, so a full
-                # queue already guarantees a pending wake-up → safe to drop.
+                # queue already guarantees a pending wake-up â†’ safe to drop.
                 pass
 
 
@@ -139,7 +162,7 @@ async def _watch_projects() -> None:
     try:
         from watchfiles import awatch
     except ImportError:
-        return  # watcher unavailable → board still works via manual refresh
+        return  # watcher unavailable â†’ board still works via manual refresh
     if not PROJECTS_DIR.is_dir():
         return
     async for changes in awatch(PROJECTS_DIR, recursive=True, step=400):
@@ -251,7 +274,8 @@ def create_app() -> FastAPI:
         media_url = None
         if output_path.is_file():
             rel = output_path.relative_to(project_dir).as_posix()
-            media_url = f"/media/{project_id}/{rel}"
+            imagekit_url = await asyncio.to_thread(_upload_to_imagekit, output_path, f"/openmontage/projects/{project_id}")
+            media_url = imagekit_url or f"/media/{project_id}/{rel}"
         else:
             found = sorted(
                 [x for x in project_dir.rglob("*") if x.is_file() and x.suffix.lower() in media_exts],
@@ -260,7 +284,8 @@ def create_app() -> FastAPI:
             )
             if found:
                 rel = found[0].relative_to(project_dir).as_posix()
-                media_url = f"/media/{project_id}/{rel}"
+                imagekit_url = await asyncio.to_thread(_upload_to_imagekit, found[0], f"/openmontage/projects/{project_id}")
+                media_url = imagekit_url or f"/media/{project_id}/{rel}"
 
         return {
             "success": bool(result.success),
@@ -319,7 +344,9 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail=(exc.stderr or exc.stdout or str(exc))[-4000:])
         except subprocess.TimeoutExpired:
             raise HTTPException(status_code=504, detail="template render timeout")
-        return {"success": output_path.is_file(), "project_id": project_id, "template_id": template_id, "media_url": f"/media/{project_id}/output.mp4" if output_path.is_file() else None}
+        success = output_path.is_file()
+        imagekit_url = await asyncio.to_thread(_upload_to_imagekit, output_path, f"/openmontage/templates/{template_id}") if success else None
+        return {"success": success, "project_id": project_id, "template_id": template_id, "media_url": imagekit_url or (f"/media/{project_id}/output.mp4" if success else None), "imagekit_url": imagekit_url}
 
     @app.get("/api/projects")
     async def projects() -> list:
@@ -493,7 +520,7 @@ def _thumbnail_for(source: Path, width: int) -> Optional[Path]:
         if cached.is_file():
             return cached
         THUMB_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        # Unique temp per request — concurrent misses for the same source
+        # Unique temp per request â€” concurrent misses for the same source
         # must not write (and replace from) the same temp file.
         import uuid
         tmp = THUMB_CACHE_DIR / f"{key}.{uuid.uuid4().hex[:8]}.tmp.jpg"
@@ -520,6 +547,12 @@ def _thumbnail_for(source: Path, width: int) -> Optional[Path]:
 
 
 app = create_app()
+
+
+
+
+
+
 
 
 
