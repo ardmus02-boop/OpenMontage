@@ -28,7 +28,7 @@ rm -f "$CONSTRAINTS_FILE"
   "scikit-image==0.24.0" \
   "scikit-learn==1.5.2" \
   "matplotlib==3.9.2" \
-  "albucore==0.0.23" \
+  "albucore==0.0.16" \
   "albumentations==1.4.8" \
   "prettytable>=3.10,<4" \
   "easydict>=1.9" \
