@@ -28,12 +28,13 @@ rm -f "$CONSTRAINTS_FILE"
   "scikit-image==0.24.0" \
   "scikit-learn==1.5.2" \
   "matplotlib==3.9.2" \
+  "albucore==0.0.23" \
   "albumentations==1.4.8" \
   "prettytable>=3.10,<4" \
   "easydict>=1.9" \
   "tqdm>=4.66,<5"
 "$FS_PYTHON" -m pip install --no-deps --no-build-isolation "insightface==0.7.3"
-"$FS_PYTHON" -c 'import cv2, numpy, onnxruntime, insightface; print("[Render build] FaceSwap runtime OK; numpy", numpy.__version__, "onnxruntime", onnxruntime.__version__)'
+"$FS_PYTHON" -c 'from importlib.metadata import version; import cv2, numpy, onnxruntime, albucore, insightface; print("[Render build] FaceSwap runtime OK; numpy", numpy.__version__, "onnxruntime", onnxruntime.__version__, "albucore", version("albucore"))'
 echo "[Render build] Isolated Direct Face Swap Python environment ready."
 # DIRECT_FACESWAP_VENV_END
 
