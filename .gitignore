@@ -110,3 +110,6 @@ venv/
 /backlot/media/faceswap_renders/
 /backlot/media/source_templates/user/
 /backlot/media/temp/
+
+# Render-only isolated Python runtime for Direct Face Swap
+.venv-faceswap/

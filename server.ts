@@ -848,11 +848,13 @@ function updateDirectFaceSwapProgress(progressId: string, patch: Partial<DirectF
 }
 
 function runDirectFaceSwapCli(args: string[], progressId?: string): Promise<any> {
-  const pythonPath = process.env.PYTHON_PATH || (
-    process.platform === 'win32'
-      ? 'C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python310\\python.exe'
-      : 'python3'
-  );
+  const isolatedFaceSwapPython = path.join(process.cwd(), '.venv-faceswap', 'bin', 'python');
+  const pythonPath = process.env.DIRECT_FACESWAP_PYTHON_PATH ||
+    (process.platform !== 'win32' && fs.existsSync(isolatedFaceSwapPython)
+      ? isolatedFaceSwapPython
+      : (process.env.PYTHON_PATH || (process.platform === 'win32'
+        ? 'C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python310\\python.exe'
+        : 'python3')));
   return new Promise((resolve, reject) => {
     const child = spawn(pythonPath, ['-m', 'backlot.server', ...args], {
       cwd: process.cwd(),

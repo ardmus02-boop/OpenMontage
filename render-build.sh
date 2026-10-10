@@ -7,6 +7,35 @@ npm install --legacy-peer-deps
 
 echo "[Render build] Installing Python dependencies..."
 python3 -m pip install -r requirements.txt
+# DIRECT_FACESWAP_VENV_START
+# Keep legacy InsightFace/NumPy/OpenCV dependencies isolated from other Python features.
+echo "[Render build] Creating isolated Direct Face Swap Python environment..."
+FS_VENV=".venv-faceswap"
+python3 -m venv "$FS_VENV"
+FS_PYTHON="$FS_VENV/bin/python"
+"$FS_PYTHON" -m pip install --upgrade pip setuptools wheel
+CONSTRAINTS_FILE="$(mktemp)"
+printf 'numpy<2\n' > "$CONSTRAINTS_FILE"
+"$FS_PYTHON" -m pip install -c "$CONSTRAINTS_FILE" -r requirements.txt
+rm -f "$CONSTRAINTS_FILE"
+"$FS_PYTHON" -m pip install \
+  "numpy==1.26.4" \
+  "Cython<3" \
+  "onnx>=1.13,<2" \
+  "onnxruntime==1.20.1" \
+  "opencv-python-headless==4.10.0.84" \
+  "scipy==1.13.1" \
+  "scikit-image==0.24.0" \
+  "scikit-learn==1.5.2" \
+  "matplotlib==3.9.2" \
+  "albumentations==1.4.8" \
+  "prettytable>=3.10,<4" \
+  "easydict>=1.9" \
+  "tqdm>=4.66,<5"
+"$FS_PYTHON" -m pip install --no-deps --no-build-isolation "insightface==0.7.3"
+"$FS_PYTHON" -c 'import cv2, numpy, onnxruntime, insightface; print("[Render build] FaceSwap runtime OK; numpy", numpy.__version__, "onnxruntime", onnxruntime.__version__)'
+echo "[Render build] Isolated Direct Face Swap Python environment ready."
+# DIRECT_FACESWAP_VENV_END
 
 MODEL_DIR="backlot/models"
 MODEL_PATH="$MODEL_DIR/inswapper_128.onnx"
