@@ -1,12 +1,37 @@
-﻿import express, { Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { exec, spawn } from 'child_process';
 import util from 'util';
+import { google } from 'googleapis';
+import { randomBytes } from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+import ImageKit from 'imagekit';
+const imagekit = new ImageKit({
+  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+});
+
+async function uploadToImageKit(filePath: string, folder: string): Promise<string | null> {
+  try {
+    const result = await imagekit.upload({
+      file: fs.readFileSync(filePath),
+      fileName: path.basename(filePath),
+      folder,
+      useUniqueFileName: true,
+    });
+    console.log("[ImageKit] Upload OK:", result.url);
+    return result.url;
+  } catch (error) {
+    console.error('[ImageKit] Upload failed:', error);
+    return null;
+  }
+}
 
 const execPromise = util.promisify(exec);
 const app = express();
@@ -14,6 +39,102 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+
+// GOOGLE_OAUTH_SETUP_START
+const GOOGLE_REDIRECT_URI =
+  process.env.GOOGLE_REDIRECT_URI ||
+  'https://openmontage-fhpp.onrender.com/oauth2callback';
+
+const googleOAuthStates = new Map<string, number>();
+
+function createGoogleOAuthClient() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing in Render Environment Variables.');
+  }
+
+  return new google.auth.OAuth2(clientId, clientSecret, GOOGLE_REDIRECT_URI);
+}
+
+app.get('/auth/google', (req: Request, res: Response) => {
+  try {
+    const oauthClient = createGoogleOAuthClient();
+    const state = randomBytes(24).toString('hex');
+
+    googleOAuthStates.set(state, Date.now());
+
+    const authUrl = oauthClient.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      include_granted_scopes: true,
+      scope: ['https://www.googleapis.com/auth/drive.file'],
+      state
+    });
+
+    res.redirect(authUrl);
+  } catch (error: any) {
+    res.status(500).send(error?.message || 'Google OAuth setup failed.');
+  }
+});
+
+app.get('/oauth2callback', async (req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+
+  const state = String(req.query.state || '');
+  const code = String(req.query.code || '');
+  const oauthError = String(req.query.error || '');
+  const createdAt = googleOAuthStates.get(state);
+
+  if (oauthError) {
+    return res.status(400).send('Google authorization was cancelled or denied. You can try again from /auth/google.');
+  }
+
+  if (!state || !createdAt || Date.now() - createdAt > 10 * 60 * 1000) {
+    return res.status(400).send('Authorization state is invalid or expired. Start again from /auth/google.');
+  }
+
+  googleOAuthStates.delete(state);
+
+  if (!code) {
+    return res.status(400).send('Google did not return an authorization code.');
+  }
+
+  try {
+    const oauthClient = createGoogleOAuthClient();
+    const { tokens } = await oauthClient.getToken(code);
+    const refreshToken = tokens.refresh_token;
+
+    if (!refreshToken) {
+      return res.status(400).send(
+        'Google did not return a refresh token. Check the OAuth consent configuration, then revoke this app access in your Google Account and try again.'
+      );
+    }
+
+    // Deliberately do not log or persist the refresh token on the server.
+    res.type('html').send(`<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google Drive authorization</title></head>
+<body style="font-family:Arial,sans-serif;max-width:760px;margin:40px auto;padding:0 18px">
+<h2>Google authorization succeeded</h2>
+<p>Copy the refresh token below and save it in your Render service's Environment Variables as <b>GOOGLE_REFRESH_TOKEN</b>.</p>
+<p>Keep this token secret. Do not send it in chat or commit it to GitHub.</p>
+<textarea id="token" readonly style="width:100%;height:100px;overflow-wrap:anywhere">${refreshToken}</textarea>
+<p><button onclick="navigator.clipboard.writeText(document.getElementById('token').value)">Copy refresh token</button></p>
+<p>After saving the variable in Render, redeploy the service. You can then return to OpenMontage.</p>
+</body></html>`);
+  } catch (error: any) {
+    // Never log token values or OAuth response objects.
+    console.error('[Google OAuth] Token exchange failed:', error?.message || 'unknown error');
+    res.status(500).send('Google token exchange failed. Check the Render service logs for the error message, without sharing secrets.');
+  }
+});
+// GOOGLE_OAUTH_SETUP_END
 
 // Directories
 const BACKLOT_ROOT = path.resolve(process.cwd(), 'backlot');
@@ -602,6 +723,9 @@ app.post('/api/faceswap-templates/add', upload.single('video'), async (req: Requ
     // Face suitability check & thumbnail generation
     const faceCheck = await checkFaceSuitability(targetVideoPath, targetThumbPath);
 
+    const imagekitVideoUrl = await uploadToImageKit(targetVideoPath, '/openmontage/faceswap-templates');
+    const imagekitThumbUrl = await uploadToImageKit(targetThumbPath, '/openmontage/faceswap-templates');
+
     const isVertical = analysis.height > analysis.width;
     const aspectRatio = isVertical ? '9:16' : analysis.width === analysis.height ? '1:1' : '16:9';
 
@@ -622,8 +746,8 @@ app.post('/api/faceswap-templates/add', upload.single('video'), async (req: Requ
       face_suitability: faceCheck.suitability,
       confidence: faceCheck.confidence,
       aspect_ratio: aspectRatio,
-      video_url: `/backlot/media/source_templates/user/${targetVideoFilename}`,
-      thumbnail_url: `/backlot/media/source_templates/user/${targetThumbFilename}`,
+      video_url: imagekitVideoUrl || `/backlot/media/source_templates/user/${targetVideoFilename}`,
+      thumbnail_url: imagekitThumbUrl || `/backlot/media/source_templates/user/${targetThumbFilename}`,
       filename: targetVideoFilename,
       created_at: new Date().toISOString(),
       tags: ['User Upload', aspectRatio, `${analysis.width}x${analysis.height}`]
@@ -695,6 +819,262 @@ app.delete('/api/faceswap-templates/:id', (req: Request, res: Response) => {
 });
 
 // 5. Face Swap Render API
+// DIRECT_FACESWAP_NODE_ROUTES_START
+// Direct Face Swap runs Python as a subprocess; it does not depend on the old Uvicorn :8000 service.
+type DirectFaceSwapProgressState = {
+  progress: number;
+  stage: string;
+  status: 'running' | 'completed' | 'error';
+  updated_at: number;
+  frame?: number;
+  total_frames?: number;
+  elapsed_seconds?: number;
+  eta_seconds?: number | null;
+  error?: string;
+};
+const directFaceSwapProgress = new Map<string, DirectFaceSwapProgressState>();
+
+function updateDirectFaceSwapProgress(progressId: string, patch: Partial<DirectFaceSwapProgressState>): void {
+  if (!progressId) return;
+  const previous = directFaceSwapProgress.get(progressId);
+  directFaceSwapProgress.set(progressId, {
+    progress: previous?.progress ?? 1,
+    stage: previous?.stage ?? 'Ä°ÅŸlem hazÄ±rlanÄ±yor',
+    status: previous?.status ?? 'running',
+    ...(previous || {}),
+    ...patch,
+    updated_at: Date.now(),
+  });
+}
+
+function runDirectFaceSwapCli(args: string[], progressId?: string): Promise<any> {
+  const pythonPath = process.env.PYTHON_PATH || (
+    process.platform === 'win32'
+      ? 'C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python310\\python.exe'
+      : 'python3'
+  );
+  return new Promise((resolve, reject) => {
+    const child = spawn(pythonPath, ['-m', 'backlot.server', ...args], {
+      cwd: process.cwd(),
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let stdout = '';
+    let stderr = '';
+    let pendingStdout = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    const consumeProgressLine = (line: string) => {
+      const marker = '__DIRECT_FACESWAP_PROGRESS__';
+      if (!line.startsWith(marker) || !progressId) return;
+      try {
+        const event = JSON.parse(line.slice(marker.length));
+        const progress = Math.max(0, Math.min(99, Number(event.progress) || 0));
+        updateDirectFaceSwapProgress(progressId, {
+          progress,
+          stage: String(event.stage || 'Video iÅŸleniyor'),
+          status: 'running',
+          ...(Number.isFinite(Number(event.frame)) ? { frame: Number(event.frame) } : {}),
+          ...(Number.isFinite(Number(event.total_frames)) ? { total_frames: Number(event.total_frames) } : {}),
+          ...(Number.isFinite(Number(event.elapsed_seconds)) ? { elapsed_seconds: Number(event.elapsed_seconds) } : {}),
+          ...(event.eta_seconds === null || Number.isFinite(Number(event.eta_seconds)) ? { eta_seconds: event.eta_seconds === null ? null : Number(event.eta_seconds) } : {}),
+        });
+      } catch {}
+    };
+    child.stdout.on('data', (chunk: string) => {
+      stdout += chunk;
+      pendingStdout += chunk;
+      const lines = pendingStdout.split(/\r?\n/);
+      pendingStdout = lines.pop() || '';
+      for (const line of lines) consumeProgressLine(line);
+    });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.on('error', error => reject(new Error(`Could not start Python Face Swap CLI (${pythonPath}): ${error.message}`)));
+    child.on('close', code => {
+      if (pendingStdout) consumeProgressLine(pendingStdout);
+      const marker = '__DIRECT_FACESWAP_JSON__';
+      const resultLine = stdout.split(/\r?\n/).reverse().find(line => line.startsWith(marker));
+      let payload: any = null;
+      if (resultLine) {
+        try { payload = JSON.parse(resultLine.slice(marker.length)); } catch { payload = null; }
+      }
+      if (code !== 0 || !payload || payload.success === false) {
+        const detail = payload?.error || stderr.trim().slice(-2500) || stdout.trim().slice(-2500) || `Python process exited with code ${code}`;
+        reject(new Error(detail));
+        return;
+      }
+      resolve(payload);
+    });
+  });
+}
+function cleanupDirectFaceSwapStaging(sessionDir: string, uploadedPaths: string[] = []): void {
+  for (const uploadedPath of uploadedPaths) {
+    try { if (fs.existsSync(uploadedPath)) fs.unlinkSync(uploadedPath); } catch {}
+  }
+  try { if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
+}
+
+app.post('/api/faceswap-direct-detect', upload.single('video'), async (req: Request, res: Response) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ success: false, error: 'Choose a video file first.' });
+
+    try {
+      for (const entry of fs.readdirSync(TEMP_DIR, { withFileTypes: true })) {
+        if (!entry.isDirectory() || !entry.name.startsWith('direct_faceswap_')) continue;
+        const folder = path.join(TEMP_DIR, entry.name);
+        try {
+          const stat = fs.statSync(folder);
+          if (Date.now() - stat.mtimeMs > 30 * 60 * 1000) fs.rmSync(folder, { recursive: true, force: true });
+        } catch {}
+      }
+    } catch {}  const sessionId = randomBytes(8).toString('hex');
+  const sessionDir = path.join(TEMP_DIR, `direct_faceswap_${sessionId}`);
+  try {
+    fs.mkdirSync(sessionDir, { recursive: true });
+    const result = await runDirectFaceSwapCli([
+      '--cli-direct-detect', '--video', file.path
+    ]);
+    const metadata = {
+      session_id: sessionId,
+      seed_frame_index: Number(result.seed_frame_index || 0),
+      face_count: Array.isArray(result.faces) ? result.faces.length : 0,
+      created_at: Date.now()
+    };
+    if (!metadata.face_count) throw new Error('No faces were returned by the detector.');
+    fs.writeFileSync(path.join(sessionDir, 'session.json'), JSON.stringify(metadata), 'utf8');
+    return res.json({ success: true, ...result, session_id: sessionId });
+  } catch (error: any) {
+    cleanupDirectFaceSwapStaging(sessionDir);
+    console.error('[Direct FaceSwap] Detection CLI failed:', error?.message || error);
+    return res.status(500).json({ success: false, error: error?.message || 'Direct Face Swap face detection failed.' });
+  } finally {
+    try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
+  }
+});
+
+app.post('/api/faceswap-direct-render', upload.any(), async (req: Request, res: Response) => {
+  const files = Array.isArray(req.files) ? req.files as Express.Multer.File[] : [];
+  const uploadedPaths = files.map(file => file.path);
+  const sessionId = String(req.body?.session_id || '');
+  const progressId = String(req.body?.progress_id || '');
+  if (!/^[a-f0-9]{32}$/i.test(progressId)) {
+    for (const file of files) { try { fs.unlinkSync(file.path); } catch {} }
+    return res.status(400).json({ success: false, error: 'Invalid progress ID. Refresh the page and try again.' });
+  }
+  updateDirectFaceSwapProgress(progressId, { progress: 2, stage: 'Video ve referanslar hazÄ±rlanÄ±yor', status: 'running' });
+  if (!/^[a-f0-9]{16}$/i.test(sessionId)) {
+    for (const file of files) { try { fs.unlinkSync(file.path); } catch {} }
+    return res.status(400).json({ success: false, error: 'Invalid or expired video session. Select the video and detect faces again.' });
+  }
+
+  const sessionDir = path.join(TEMP_DIR, `direct_faceswap_${sessionId}`);
+  try {
+    const metadataPath = path.join(sessionDir, 'session.json');
+    if (!fs.existsSync(metadataPath)) throw new Error('The temporary video session has expired. Select the video and detect faces again.');
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    if (Date.now() - Number(metadata.created_at || 0) > 30 * 60 * 1000) {
+      throw new Error('The temporary video session expired. Select the video and detect faces again.');
+    }
+    const faceCount = Number(metadata.face_count || 0);
+    if (!Number.isInteger(faceCount) || faceCount < 1 || faceCount > 100) throw new Error('Invalid detected face mapping. Detect faces again.');
+
+    const videoFile = files.find(file => file.fieldname === 'video');
+    if (!videoFile) throw new Error('The selected source video was not sent with Generate. Choose the video again and retry.');
+    const requestedExt = path.extname(path.basename(videoFile.originalname || 'source.mp4')).toLowerCase();
+    const videoExt = ['.mp4', '.mov', '.m4v', '.webm', '.avi'].includes(requestedExt) ? requestedExt : '.mp4';
+    const sourcePath = path.join(sessionDir, `source${videoExt}`);
+    fs.copyFileSync(videoFile.path, sourcePath);
+
+    const referencePaths: Array<string | null> = [];
+    for (let index = 0; index < faceCount; index++) {
+      const referenceFile = files.find(file => file.fieldname === `face_${index}`);
+      if (!referenceFile) {
+        referencePaths.push(null);
+        continue;
+      }
+      const refExtRaw = path.extname(path.basename(referenceFile.originalname || 'reference.jpg')).toLowerCase();
+      const refExt = ['.png', '.jpg', '.jpeg', '.webp'].includes(refExtRaw) ? refExtRaw : '.jpg';
+      const referencePath = path.join(sessionDir, `reference_${index}${refExt}`);
+      fs.copyFileSync(referenceFile.path, referencePath);
+      referencePaths.push(referencePath);
+    }
+    if (!referencePaths.some(Boolean)) throw new Error('Choose a reference image for at least one detected face.');
+
+    const manifestPath = path.join(sessionDir, 'references.json');
+    fs.writeFileSync(manifestPath, JSON.stringify(referencePaths), 'utf8');
+    const renderId = randomBytes(6).toString('hex');
+    const preserveAudio = String(req.body?.preserve_audio ?? 'true').toLowerCase() !== 'false';
+    const result = await runDirectFaceSwapCli([
+      '--cli-direct-render',
+      '--progress-id', progressId,
+      '--video', sourcePath,
+      '--seed-frame-index', String(Number(metadata.seed_frame_index || 0)),
+      '--references-json', manifestPath,
+      '--preserve-audio', preserveAudio ? 'true' : 'false',
+      '--render-id', renderId
+    ], progressId);
+    updateDirectFaceSwapProgress(progressId, { progress: 100, stage: 'Face Swap tamamlandÄ±', status: 'completed', eta_seconds: 0 });
+    return res.json({ success: true, ...result });
+  } catch (error: any) {
+    updateDirectFaceSwapProgress(progressId, { progress: directFaceSwapProgress.get(progressId)?.progress ?? 1, stage: 'Face Swap baÅŸarÄ±sÄ±z', status: 'error', error: error?.message || 'Unknown render error' });
+    console.error('[Direct FaceSwap] Render CLI failed:', error?.message || error);
+    return res.status(500).json({ success: false, error: error?.message || 'Direct Face Swap render failed.' });
+  } finally {
+    cleanupDirectFaceSwapStaging(sessionDir, uploadedPaths);
+  }
+});
+
+app.get('/api/faceswap-direct-progress/:progress_id', (req: Request, res: Response) => {
+  const progressId = String(req.params.progress_id || '');
+  if (!/^[a-f0-9]{32}$/i.test(progressId)) {
+    return res.status(400).json({ success: false, error: 'Invalid progress ID.' });
+  }
+
+  const progressPath = path.join(BACKLOT_ROOT, 'media', 'faceswap_temp', `${progressId}_progress.json`);
+  const inMemory = directFaceSwapProgress.get(progressId);
+  let diskState: any = null;
+  try {
+    if (fs.existsSync(progressPath)) diskState = JSON.parse(fs.readFileSync(progressPath, 'utf8'));
+  } catch (error: any) {
+    console.warn('[Direct FaceSwap] Could not read progress sidecar:', error?.message || error);
+  }
+
+  const terminalState = inMemory && (inMemory.status === 'completed' || inMemory.status === 'error') ? inMemory : null;
+  const state: any = terminalState || (diskState ? {
+    progress: Number(diskState.progress) || 1,
+    stage: String(diskState.stage || 'Video kareleri isleniyor'),
+    status: 'running',
+    updated_at: Number(diskState.updated_at) || Date.now(),
+    ...(typeof diskState.frame === 'number' ? { frame: diskState.frame } : {}),
+    ...(typeof diskState.total_frames === 'number' ? { total_frames: diskState.total_frames } : {}),
+    ...(typeof diskState.elapsed_seconds === 'number' ? { elapsed_seconds: diskState.elapsed_seconds } : {}),
+    ...(typeof diskState.eta_seconds === 'number' || diskState.eta_seconds === null ? { eta_seconds: diskState.eta_seconds } : {}),
+  } : inMemory);
+
+  if (!state) return res.status(404).json({ success: false, error: 'Progress has not started yet.' });
+  if (Date.now() - Number(state.updated_at || Date.now()) > 30 * 60 * 1000) {
+    directFaceSwapProgress.delete(progressId);
+    try { if (fs.existsSync(progressPath)) fs.unlinkSync(progressPath); } catch {}
+    return res.status(410).json({ success: false, error: 'Progress session expired.' });
+  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  return res.json({ success: true, progress: state });
+});
+app.get('/api/faceswap-direct-download/:render_id', async (req: Request, res: Response) => {
+  const renderId = String(req.params.render_id || '');
+  if (!/^[a-f0-9]{12}$/i.test(renderId)) return res.status(400).json({ success: false, error: 'Invalid render ID.' });
+  const target = path.join(BACKLOT_ROOT, 'media', 'faceswap_temp', `${renderId}_faceswap.mp4`);
+  if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
+    return res.status(404).json({ success: false, error: 'Face Swap result not found. Generate a video first.' });
+  }
+  return res.download(target, `${renderId}_faceswap.mp4`, (error) => {
+    if (error) {
+      console.error('[Direct FaceSwap] Download failed:', error.message);
+    }
+    try { if (fs.existsSync(target)) fs.unlinkSync(target); } catch {}
+  });
+});
+// DIRECT_FACESWAP_NODE_ROUTES_END
 app.post('/api/faceswap-render', upload.single('face_image'), async (req: Request, res: Response) => {
   try {
     const templateId = req.body.template_id;
@@ -1169,5 +1549,3 @@ async function startServer() {
 }
 
 startServer();
-
-

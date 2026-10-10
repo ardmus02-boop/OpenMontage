@@ -104,3 +104,9 @@ venv/
 
 # Local Wan / diffusers GPU environment
 .venv-wan/
+# Local Face Swap model/media files (never commit uploads or ONNX weights)
+/backlot/models/
+/backlot/media/faceswap_temp/
+/backlot/media/faceswap_renders/
+/backlot/media/source_templates/user/
+/backlot/media/temp/

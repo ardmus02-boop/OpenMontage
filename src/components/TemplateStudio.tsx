@@ -45,6 +45,174 @@ export const TemplateStudio: React.FC<TemplateStudioProps> = ({
   const [renderLogs, setRenderLogs] = useState<string[]>([]);
   const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null);
 
+  // DIRECT_FACESWAP_UI_START
+  const [swapMode, setSwapMode] = useState<'direct' | 'library'>('direct');
+  const [directVideoFile, setDirectVideoFile] = useState<File | null>(null);
+  const [directVideoPreview, setDirectVideoPreview] = useState<string | null>(null);
+  const [directSessionId, setDirectSessionId] = useState<string | null>(null);
+  const [directFaces, setDirectFaces] = useState<Array<{ id: string; index: number; preview_data_url: string; bbox: number[] }>>([]);
+  const [directReferenceFiles, setDirectReferenceFiles] = useState<Record<number, File>>({});
+  const [directReferencePreviews, setDirectReferencePreviews] = useState<Record<number, string>>({});
+  const [isDetectingDirectFaces, setIsDetectingDirectFaces] = useState(false);
+  const [isRenderingDirect, setIsRenderingDirect] = useState(false);
+  const [directError, setDirectError] = useState<string | null>(null);
+  const [directVideoUrl, setDirectVideoUrl] = useState<string | null>(null);
+  const [directDownloadUrl, setDirectDownloadUrl] = useState<string | null>(null);
+  const [directProgress, setDirectProgress] = useState<{ progress: number; stage: string; status: string; frame?: number; total_frames?: number; eta_seconds?: number | null; error?: string } | null>(null);
+
+  useEffect(() => {
+    const currentPreview = directVideoPreview;
+    return () => {
+      if (currentPreview && currentPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(currentPreview);
+      }
+    };
+  }, [directVideoPreview]);
+
+  const handleDirectVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setDirectVideoFile(file);
+    setDirectVideoPreview(file ? URL.createObjectURL(file) : null);
+    setDirectSessionId(null);
+    setDirectFaces([]);
+    setDirectReferenceFiles({});
+    setDirectReferencePreviews({});
+    setDirectVideoUrl(null);
+    setDirectDownloadUrl(null);
+    setDirectError(null);
+  };
+
+  const handleDetectDirectFaces = async () => {
+    if (!directVideoFile) {
+      setDirectError('Choose a video from your device first.');
+      return;
+    }
+
+    setIsDetectingDirectFaces(true);
+    setDirectError(null);
+    setDirectSessionId(null);
+    setDirectFaces([]);
+    setDirectReferenceFiles({});
+    setDirectReferencePreviews({});
+    setDirectVideoUrl(null);
+    setDirectDownloadUrl(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('video', directVideoFile);
+      const response = await fetch('/api/faceswap-direct-detect', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.detail || data.error || `Face detection failed (HTTP ${response.status}).`);
+      }
+      if (!Array.isArray(data.faces) || data.faces.length === 0 || !data.session_id) {
+        throw new Error('No faces were returned for this video. Try a clear video with visible faces.');
+      }
+      setDirectSessionId(data.session_id);
+      setDirectFaces(data.faces);
+    } catch (err: any) {
+      setDirectError(err.message || 'Could not detect faces in the selected video.');
+    } finally {
+      setIsDetectingDirectFaces(false);
+    }
+  };
+
+  const handleDirectReferenceChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setDirectError(`Reference for Face ${index + 1} must be an image.`);
+      return;
+    }
+    setDirectReferenceFiles(prev => ({ ...prev, [index]: file }));
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDirectReferencePreviews(prev => ({ ...prev, [index]: String(reader.result || '') }));
+    };
+    reader.readAsDataURL(file);
+    setDirectError(null);
+  };
+
+  const handleExecuteDirectFaceSwap = async () => {
+    if (!directSessionId || directFaces.length === 0 || !directVideoFile) {
+      setDirectError('Önce bir video seç ve yüzleri tespit et.');
+      return;
+    }
+    if (!Object.values(directReferenceFiles).some(Boolean)) {
+      setDirectError('En az bir yüze referans fotoğrafı ata.');
+      return;
+    }
+
+    const progressId = Array.from(window.crypto.getRandomValues(new Uint8Array(16)))
+      .map(value => value.toString(16).padStart(2, '0')).join('');
+    let pollTimer: number | undefined;
+    let pollBusy = false;
+    setIsRenderingDirect(true);
+    setDirectError(null);
+    setDirectVideoUrl(null);
+    setDirectDownloadUrl(null);
+    setDirectProgress({ progress: 1, stage: 'Video ve referanslar hazırlanıyor', status: 'running' });
+
+    const pollProgress = async () => {
+      if (pollBusy) return;
+      pollBusy = true;
+      try {
+        const progressResponse = await fetch(`/api/faceswap-direct-progress/${progressId}`, { cache: 'no-store' });
+        if (progressResponse.ok) {
+          const progressData = await progressResponse.json();
+          if (progressData.success && progressData.progress) setDirectProgress(progressData.progress);
+        }
+      } catch {
+        // Progress polling is best-effort; the render request remains authoritative.
+      } finally {
+        pollBusy = false;
+      }
+    };
+
+    try {
+      const formData = new FormData();
+      formData.append('session_id', directSessionId);
+      formData.append('progress_id', progressId);
+      formData.append('video', directVideoFile);
+      formData.append('preserve_audio', preserveAudio ? 'true' : 'false');
+      directFaces.forEach((_, index) => {
+        const referenceFile = directReferenceFiles[index];
+        if (referenceFile) formData.append(`face_${index}`, referenceFile);
+      });
+
+      pollTimer = window.setInterval(() => { void pollProgress(); }, 700);
+      void pollProgress();
+      const response = await fetch('/api/faceswap-direct-render', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.detail || data.error || `Face Swap failed (HTTP ${response.status}).`);
+      }
+      setDirectVideoUrl(data.video_url || null);
+      setDirectDownloadUrl(data.download_url || null);
+      setDirectSessionId(null);
+      setDirectProgress({ progress: 100, stage: 'Face Swap tamamlandı; video indirilmeye hazır', status: 'completed', eta_seconds: 0 });
+    } catch (err: any) {
+      const message = err.message || 'Direct Face Swap failed.';
+      setDirectError(message);
+      setDirectProgress(previous => ({
+        progress: previous?.progress ?? 1,
+        stage: 'Face Swap başarısız',
+        status: 'error',
+        error: message,
+      }));
+    } finally {
+      if (pollTimer !== undefined) window.clearInterval(pollTimer);
+      setIsRenderingDirect(false);
+    }
+  };
+  // DIRECT_FACESWAP_UI_END
+
   // Motion Template Render State
   const [selectedMotionTemplate, setSelectedMotionTemplate] = useState<MotionTemplate | null>(null);
   const [motionHeadline, setMotionHeadline] = useState('');
@@ -500,7 +668,140 @@ export const TemplateStudio: React.FC<TemplateStudioProps> = ({
                 </span>
               </div>
 
-              {selectedFsTemplate ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSwapMode('direct')}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold border transition-colors ${swapMode === 'direct' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-cyan-700'}`}
+                >OPEN BROWSER Â· DIRECT VIDEO</button>
+                <button
+                  type="button"
+                  onClick={() => setSwapMode('library')}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold border transition-colors ${swapMode === 'library' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-cyan-700'}`}
+                >TEMPLATE LIBRARY</button>
+              </div>
+
+              {swapMode === 'direct' ? (
+                <div className="space-y-4" data-direct-faceswap="true">
+                  <div className="rounded-xl border border-cyan-900/70 bg-zinc-950 p-4 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">Use a video from your device</h3>
+                      <p className="text-[11px] text-zinc-400 mt-1">No template is saved. The uploaded video is used for this one render only.</p>
+                    </div>
+                    <label className="block cursor-pointer rounded-lg border border-dashed border-zinc-700 bg-zinc-900 px-4 py-4 text-center hover:border-cyan-500">
+                      <input
+                        type="file"
+                        accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,.mp4,.mov,.m4v,.webm,.avi"
+                        onChange={handleDirectVideoChange}
+                        className="block w-full text-xs text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-950 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-cyan-300"
+                      />
+                      <span className="mt-2 block text-[10px] text-zinc-500">On a phone, use Browse / Choose File to select a video.</span>
+                    </label>
+                    {directVideoFile && (
+                      <div className="text-xs text-zinc-300 truncate">Selected: {directVideoFile.name}</div>
+                    )}
+                    {directVideoPreview && (
+                      <video src={directVideoPreview} controls muted playsInline className="w-full max-h-52 rounded-lg bg-black object-contain" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleDetectDirectFaces}
+                      disabled={!directVideoFile || isDetectingDirectFaces || isRenderingDirect}
+                      className="w-full rounded-lg bg-cyan-600 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+                    >
+                      {isDetectingDirectFaces ? 'Detecting facesâ€¦' : '1. Detect Faces in Video'}
+                    </button>
+                  </div>
+
+                  {directFaces.length > 0 && (
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-white">Assign a reference photo to each face</h3>
+                        <p className="text-[11px] text-zinc-400 mt-1">Face cards are initially ordered from left to right in the detection frame. Choose the photo that belongs to each face.</p>
+                      </div>
+                      <div className="space-y-3">
+                        {directFaces.map((face, index) => (
+                          <div key={`${face.id}-${index}`} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3 rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+                            <div className="space-y-1">
+                              <img src={face.preview_data_url} alt={`Detected Face ${index + 1}`} className="h-20 w-[76px] rounded-lg border border-zinc-700 object-cover bg-black" />
+                              <div className="text-center text-[10px] font-semibold text-cyan-300">Face {index + 1}</div>
+                            </div>
+                            <div className="min-w-0 space-y-2">
+                              <label className="block text-xs font-medium text-zinc-300">Reference photo</label>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                onChange={e => handleDirectReferenceChange(index, e)}
+                                className="block w-full text-[11px] text-zinc-300 file:mr-2 file:rounded-md file:border-0 file:bg-zinc-800 file:px-2 file:py-2 file:text-[11px] file:text-zinc-200"
+                              />
+                              {directReferencePreviews[index] && (
+                                <div className="flex items-center gap-2">
+                                  <img src={directReferencePreviews[index]} alt={`Reference for Face ${index + 1}`} className="h-10 w-10 rounded-md border border-emerald-700 object-cover" />
+                                  <span className="truncate text-[11px] text-emerald-400">{directReferenceFiles[index]?.name || 'Reference selected'}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <label className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-3">
+                        <span className="text-xs text-zinc-300">Preserve original video audio</span>
+                        <input type="checkbox" checked={preserveAudio} onChange={e => setPreserveAudio(e.target.checked)} className="h-4 w-4 accent-cyan-500" />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleExecuteDirectFaceSwap}
+                        disabled={isRenderingDirect || isDetectingDirectFaces || !Object.values(directReferenceFiles).some(Boolean)}
+                        className="w-full rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-900/30 disabled:opacity-50"
+                      >
+                        {isRenderingDirect ? 'Generating Face Swapâ€¦' : '2. Generate Face Swap'}
+                      </button>
+                    </div>
+                  )}
+                  {isDetectingDirectFaces && (
+                    <div role="status" aria-live="polite" className="flex items-center gap-3 rounded-xl border border-cyan-700/70 bg-zinc-950 p-3 text-xs text-cyan-100">
+                      <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-cyan-300 border-t-transparent" />
+                      <span>Detecting faces in your videoâ€¦</span>
+                    </div>
+                  )}
+                  {/* DIRECT_RENDER_PROGRESS_UI */}
+                  {directProgress && (
+                    <div role="status" aria-live="polite" className="space-y-3 rounded-xl border border-cyan-800/80 bg-cyan-950/30 p-4 text-sm text-cyan-100">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          {isRenderingDirect && <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-cyan-300 border-t-transparent" />}
+                          <span className="truncate font-semibold">{directProgress.stage}</span>
+                        </div>
+                        <strong className="shrink-0 tabular-nums">{Math.max(0, Math.min(100, Math.round(directProgress.progress)))}%</strong>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-full bg-zinc-800" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0, Math.min(100, Math.round(directProgress.progress)))}>
+                        <div className={`h-full rounded-full transition-all duration-300 ${directProgress.status === 'error' ? 'bg-rose-500' : directProgress.status === 'completed' ? 'bg-emerald-500' : 'bg-cyan-400'}`} style={{ width: `${Math.max(0, Math.min(100, directProgress.progress))}%` }} />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-300">
+                        <span>{typeof directProgress.frame === 'number' && typeof directProgress.total_frames === 'number' && directProgress.total_frames > 0 ? `Kare ${Math.min(directProgress.frame, directProgress.total_frames).toLocaleString()} / ${directProgress.total_frames.toLocaleString()}` : directProgress.status === 'completed' ? 'İşlem tamamlandı' : directProgress.status === 'error' ? 'İşlem tamamlanamadı' : 'Video kareleri işleniyor'}</span>
+                        <span>{isRenderingDirect && typeof directProgress.eta_seconds === 'number' && directProgress.eta_seconds > 0 ? `Tahmini kalan: ${Math.floor(directProgress.eta_seconds / 60)} dk ${Math.ceil(directProgress.eta_seconds % 60)} sn` : directProgress.status === 'completed' ? 'İndirmeye hazır' : directProgress.status === 'error' ? 'Hata ayrıntısı aşağıda' : isRenderingDirect ? 'Lütfen bu sayfayı açık tut' : ''}</span>
+                      </div>
+                    </div>
+                  )}
+                  {directError && (
+                    <div role="alert" className="rounded-lg border border-rose-900 bg-rose-950/40 px-3 py-2 text-xs text-rose-300">{directError}</div>
+                  )}
+
+                  {directVideoUrl && (
+                    <div className="space-y-3 rounded-xl border border-emerald-800 bg-zinc-950 p-3">
+                      <div className="text-sm font-semibold text-emerald-400">Face Swap ready</div>
+                      <video src={directVideoUrl} controls playsInline className="w-full rounded-lg bg-black" />
+                      {directDownloadUrl && (
+                        <a
+                          href={directDownloadUrl}
+                          download="faceswap_rendered.mp4"
+                          className="block rounded-lg bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-500"
+                        >Download MP4 (temporary result is cleaned after download)</a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : selectedFsTemplate ? (
                 <div className="space-y-4">
                   {/* Selected Source Template Badge */}
                   <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-between gap-3">
